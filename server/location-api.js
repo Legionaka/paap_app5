@@ -48,7 +48,7 @@ export async function getPublishedLocation(locationId) {
           AND EXISTS (SELECT 1 FROM public.locations WHERE id = ${locationId} AND is_published = true)
         ORDER BY source_data_date DESC NULLS LAST`,
     sql`SELECT metric, value, unit, source_id AS "sourceId",
-               observed_at::date AS "sourceDate",
+               to_char(observed_at AT TIME ZONE 'Africa/Johannesburg', 'YYYY-MM-DD') AS "sourceDate",
                captured_from_source_id AS "capturedFromSourceId",
                observed_at AS "observedAt", retrieved_at AS "capturedAt", metadata,
                replace(verification_status, '_', '-') AS status
@@ -93,7 +93,11 @@ export async function getPublishedLocation(locationId) {
     observations: observations.map(item => ({
       ...item,
       label: item.metric.replaceAll('_', ' '),
-      cadence: 'reported',
+      cadence: item.sourceId === 'dws-weekly-dam-levels' ? 'weekly' : 'reported',
+      dataClass: item.sourceId === 'dws-weekly-dam-levels' ? 'weekly-official-report'
+        : item.capturedFromSourceId ? 'secondary-transcription'
+          : item.status === 'community-reported' ? 'community-report'
+            : item.status === 'estimated' ? 'estimate' : 'observation',
       latestAvailable: Boolean(item.metadata?.latest_available_marker),
     })),
     species,

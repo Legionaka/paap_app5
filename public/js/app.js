@@ -100,9 +100,12 @@ function renderCatalog(location) {
   const storage = location.observations.find(item => item.metric === 'storage_percent_full_supply');
   if (storage) {
     const readableDate = formatReportDate(storage.sourceDate);
+    const reportAgeDays = Math.max(0, Math.floor((Date.now() - new Date(`${storage.sourceDate}T00:00:00+02:00`).getTime()) / 86_400_000));
+    const freshnessLabel = reportAgeDays <= 10 ? 'recent weekly report'
+      : reportAgeDays <= 17 ? 'delayed weekly report' : 'stale weekly report';
     document.querySelector('#factCheckedAt').textContent = formatReportDate(storage.capturedAt.slice(0, 10));
     const freshness = storage.latestAvailable ? ' (latest available in report)' : '';
-    document.querySelector('#factLevel').textContent = `${storage.value}${storage.unit} \u00b7 ${readableDate}${freshness}`;
+    document.querySelector('#factLevel').textContent = `${storage.value}${storage.unit} \u00b7 ${readableDate} · ${reportAgeDays} days old · ${freshnessLabel}${freshness}`;
 
     const note = document.querySelector('#storageSourceNote');
     const sourceLink = (source, label) => {
