@@ -127,7 +127,7 @@ function renderCatalog(location) {
       document.createTextNode(`. It is not a live sensor reading${storage.latestAvailable ? '; DWS marks it as the latest available data' : ''}. Percentages may exceed 100% of full supply.`),
     );
   } else {
-    document.querySelector('#factLevel').textContent = 'No level report recorded';
+    document.querySelector('#factLevel').textContent = 'No storage report recorded';
     document.querySelector('#factCheckedAt').textContent = 'Not recorded';
     document.querySelector('#storageSourceNote').textContent = 'No storage reading is currently recorded for this location.';
   }
@@ -254,23 +254,77 @@ function renderHourlyForecast(hourly, currentTime) {
   }
 }
 
-function renderFishingWindows(daily) {
+function renderFishingWindows(daily, hourly, currentTime) {
   const container = document.querySelector('#fishingWindows');
   container.replaceChildren();
+  const windows = [];
+  const parseForecastTime = value => new Date(/(?:Z|[+-]\d{2}:?\d{2})$/.test(value) ? value : `${value}+02:00`);
+  const now = parseForecastTime(currentTime).getTime();
+  const describeOutlook = (sunTime, period) => {
+    const target = parseForecastTime(sunTime).getTime();
+    let closestIndex = -1;
+    let closestDistance = Infinity;
+    hourly.time.forEach((time, index) => {
+      const distance = Math.abs(parseForecastTime(time).getTime() - target);
+      if (distance < closestDistance) {
+        closestDistance = distance;
+        closestIndex = index;
+      }
+    });
+    if (closestIndex < 0 || closestDistance > 90 * 60 * 1000) {
+      return { period, timestamp: sunTime, time: formatHour(parseForecastTime(sunTime)), label: 'Forecast unavailable', score: Infinity };
+    }
+    const wind = hourly.wind_speed_10m[closestIndex];
+    const rain = hourly.precipitation_probability[closestIndex];
+    const code = hourly.weather_code[closestIndex];
+    const storm = [95, 96, 99].includes(code);
+    const label = storm ? 'Storms forecast · recheck conditions'
+      : wind >= 30 ? 'Very windy forecast'
+        : rain >= 60 ? 'Rain likely'
+          : wind <= 18 && rain < 25 ? 'Lower wind · low rain chance'
+            : 'Mixed weather outlook';
+    return {
+      period,
+      timestamp: sunTime,
+      time: formatHour(parseForecastTime(sunTime)),
+      label,
+      score: (storm ? 100 : 0) + wind + rain * 0.2,
+    };
+  };
   for (let index = 0; index < daily.time.length; index += 1) {
-    const date = new Date(`${daily.time[index]}T12:00:00+02:00`);
+    const date = parseForecastTime(`${daily.time[index]}T12:00:00`);
     const day = document.createElement('div');
     day.className = 'fishing-window-day';
     const label = document.createElement('strong');
     label.textContent = new Intl.DateTimeFormat('en-ZA', {
       weekday: 'short', day: 'numeric', month: 'short', timeZone: WEATHER_TIME_ZONE,
     }).format(date);
-    const dawn = document.createElement('span');
-    dawn.textContent = `Dawn · ${formatHour(new Date(daily.sunrise[index]))}`;
-    const dusk = document.createElement('span');
-    dusk.textContent = `Dusk · ${formatHour(new Date(daily.sunset[index]))}`;
-    day.append(label, dawn, dusk);
+    const dawn = describeOutlook(daily.sunrise[index], 'Dawn');
+    const dusk = describeOutlook(daily.sunset[index], 'Dusk');
+    const outlook = [dawn, dusk];
+    for (const item of outlook) {
+      if (parseForecastTime(item.timestamp).getTime() < now) continue;
+      const row = document.createElement('span');
+      row.textContent = `${item.period} · ${item.time} · ${item.label}`;
+      day.append(row);
+      windows.push({ ...item, date: daily.time[index] });
+    }
+    if (day.childElementCount === 0) continue;
+    day.prepend(label);
     container.append(day);
+  }
+  if (windows.length === 0) {
+    container.textContent = 'No upcoming dawn or dusk window is available in this forecast.';
+    return;
+  }
+  const recommended = windows.filter(item => Number.isFinite(item.score)).sort((a, b) => a.score - b.score)[0];
+  if (recommended) {
+    const note = document.createElement('p');
+    note.className = 'window-recommendation';
+    const date = parseForecastTime(`${recommended.date}T12:00:00`);
+    const day = new Intl.DateTimeFormat('en-ZA', { weekday: 'short', timeZone: WEATHER_TIME_ZONE }).format(date);
+    note.textContent = `Most favourable weather outlook: ${day} ${recommended.period.toLowerCase()} · weather-only comparison`;
+    container.prepend(note);
   }
 }
 
@@ -294,7 +348,7 @@ async function loadWeather(coordinates) {
   document.querySelector('#currentWindSummary').textContent = `Model time ${formatHour(new Date(data.current.time))}`;
   document.querySelector('#weatherUpdated').textContent = `Forecast model time ${formatHour(new Date(data.current.time))}`;
   renderHourlyForecast(data.hourly, data.current.time);
-  renderFishingWindows(data.daily);
+  renderFishingWindows(data.daily, data.hourly, data.current.time);
 }
 
 async function initialise() {

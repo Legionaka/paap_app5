@@ -54,4 +54,4 @@ In Vercel, use the **Other** framework preset, leave the build command blank, an
 
 - DWS publishes state of dams weekly. A daily check looks for a newer report; it does not make the underlying reading real time.
 - Weather is a model-based forecast, not a local sensor observation. Open-Meteo's free API is for non-commercial use; commercial use needs a paid plan.
-- Fish species shown are those named in a DWS ecological water-quality report. That is not a current catch survey. Access rules, facilities, current water temperature, clarity and bite windows are not yet verified and are deliberately not shown as facts.
+- Species entries are source records, not current catch surveys. Weather is a model-based forecast; sunrise/sunset times are provider calculations at approximate location coordinates. The dawn/dusk ranking compares forecast wind, rain probability and storm codes only; it is not a prediction of fish activity. DWS storage is a weekly report and is not live. No sourced water temperature or clarity readings are currently available. Access, facilities and rules show a source or remain unverified.
