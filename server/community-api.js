@@ -1,6 +1,7 @@
 import { createHash, randomBytes, scrypt as scryptCallback, timingSafeEqual } from 'node:crypto';
 import { promisify } from 'node:util';
 import { neon } from '@neondatabase/serverless';
+import { appBaseUrl, sendAccountEmail } from './email.js';
 
 const scrypt = promisify(scryptCallback);
 const COOKIE = 'stillwater_session';
@@ -95,7 +96,8 @@ async function currentUser(sql, request) {
   const token = parseCookies(request.headers.cookie)[COOKIE];
   if (!token || token.length > 128) return null;
   const rows = await sql`
-    SELECT u.id, u.email, u.display_name AS "displayName", u.role, u.status
+    SELECT u.id, u.email, u.display_name AS "displayName", u.role, u.status,
+           (u.email_verified_at IS NOT NULL) AS "emailVerified"
     FROM public.community_sessions s
     JOIN public.community_users u ON u.id = s.user_id
     WHERE s.token_hash = ${hash(token)} AND s.expires_at > now() AND u.status = 'active'
@@ -107,12 +109,26 @@ async function currentUser(sql, request) {
 }
 
 function publicUser(user) {
-  return user ? { id: user.id, displayName: user.displayName, role: user.role } : null;
+  return user ? { id: user.id, email: user.email, displayName: user.displayName, role: user.role, emailVerified: Boolean(user.emailVerified) } : null;
 }
 
 function assertMember(user) {
+  assertMemberWithoutVerification(user);
+  if (!user.emailVerified) fail(403, 'Verify your email address before using community features.');
+}
+
+function assertMemberWithoutVerification(user) {
   if (!user) fail(401, 'Sign in to continue.');
   if (user.status !== 'active') fail(403, 'This account cannot post.');
+}
+
+function authToken() { return randomBytes(32).toString('base64url'); }
+
+async function issueAuthToken(sql, userId, type, ttl) {
+  const token = authToken();
+  await sql`UPDATE public.community_auth_tokens SET consumed_at = now() WHERE user_id = ${userId} AND token_type = ${type} AND consumed_at IS NULL`;
+  await sql`INSERT INTO public.community_auth_tokens (user_id, token_hash, token_type, expires_at) VALUES (${userId}, ${hash(token)}, ${type}, now() + (${ttl} * interval '1 second'))`;
+  return token;
 }
 
 function assertModerator(user) {
@@ -151,6 +167,8 @@ export default async function communityHandler(request, response) {
       const body = getBody(request);
       const email = cleanText(body.email, 254).toLowerCase();
       const displayName = cleanText(body.displayName, 36);
+      const requestedReturn = cleanText(body.returnTo, 500);
+      const returnTo = requestedReturn.startsWith('/') && !requestedReturn.startsWith('//') && !requestedReturn.startsWith('/\\') ? requestedReturn : '/account/';
       const password = typeof body.password === 'string' ? body.password : '';
       if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) fail(400, 'Enter a valid email address.');
       if (displayName.length < 2 || !/^[\p{L}\p{N} _.-]+$/u.test(displayName)) fail(400, 'Choose a display name with 2–36 letters or numbers.');
@@ -162,16 +180,15 @@ export default async function communityHandler(request, response) {
         created = await sql`
           INSERT INTO public.community_users (email, display_name, password_hash)
           VALUES (${email}, ${displayName}, ${passwordHash})
-          RETURNING id, email, display_name AS "displayName", role, status
+          RETURNING id, email, display_name AS "displayName", role, status, false AS "emailVerified"
         `;
       } catch (error) {
         if (error.code === '23505') fail(409, 'An account with that email already exists.');
         throw error;
       }
-      const token = randomBytes(32).toString('base64url');
-      await sql`INSERT INTO public.community_sessions (user_id, token_hash, expires_at) VALUES (${created[0].id}, ${hash(token)}, now() + interval '30 days')`;
-      setSessionCookie(response, token);
-      return response.status(201).json({ user: publicUser(created[0]) });
+      const token = await issueAuthToken(sql, created[0].id, 'verify_email', 86400);
+      await sendAccountEmail({ to: email, subject: 'Verify your Stillwater account', heading: 'Confirm your email', message: `Hi ${displayName}, confirm your email address to join location discussions.`, actionLabel: 'Verify email', actionUrl: `${appBaseUrl(request)}/verify-email/?token=${encodeURIComponent(token)}&returnTo=${encodeURIComponent(returnTo)}` });
+      return response.status(202).json({ verificationRequired: true });
     }
 
     if (parts[0] === 'auth' && parts[1] === 'login' && method === 'POST') {
@@ -179,7 +196,7 @@ export default async function communityHandler(request, response) {
       const email = cleanText(body.email, 254).toLowerCase();
       const password = typeof body.password === 'string' ? body.password : '';
       await checkRateLimit(sql, `login:${hash(requestIp(request))}`, 12, 900);
-      const rows = await sql`SELECT id, email, display_name AS "displayName", role, status, password_hash FROM public.community_users WHERE email = ${email} LIMIT 1`;
+      const rows = await sql`SELECT id, email, display_name AS "displayName", role, status, (email_verified_at IS NOT NULL) AS "emailVerified", password_hash FROM public.community_users WHERE email = ${email} LIMIT 1`;
       const account = rows[0];
       const matches = account ? await passwordMatches(password, account.password_hash) : false;
       if (!matches || account.status !== 'active') fail(401, 'Email or password is incorrect.');
@@ -187,6 +204,99 @@ export default async function communityHandler(request, response) {
       await sql`INSERT INTO public.community_sessions (user_id, token_hash, expires_at) VALUES (${account.id}, ${hash(token)}, now() + interval '30 days')`;
       setSessionCookie(response, token);
       return response.status(200).json({ user: publicUser(account) });
+    }
+
+    if (parts[0] === 'auth' && parts[1] === 'verify' && method === 'POST') {
+      const token = cleanText(getBody(request).token, 100);
+      if (!token) fail(400, 'Verification link is invalid or expired.');
+      const rows = await sql`UPDATE public.community_auth_tokens SET consumed_at = now() WHERE token_hash = ${hash(token)} AND token_type = 'verify_email' AND consumed_at IS NULL AND expires_at > now() RETURNING user_id`;
+      if (!rows[0]) fail(400, 'Verification link is invalid or expired. Request a new one from your account page.');
+      const accounts = await sql`UPDATE public.community_users SET email_verified_at = COALESCE(email_verified_at, now()), updated_at = now() WHERE id = ${rows[0].user_id} AND status = 'active' RETURNING id, email, display_name AS "displayName", role, status, true AS "emailVerified"`;
+      if (!accounts[0]) fail(400, 'This account is unavailable.');
+      const session = authToken();
+      await sql`INSERT INTO public.community_sessions (user_id, token_hash, expires_at) VALUES (${accounts[0].id}, ${hash(session)}, now() + interval '30 days')`;
+      setSessionCookie(response, session);
+      return response.status(200).json({ user: publicUser(accounts[0]) });
+    }
+
+    if (parts[0] === 'auth' && parts[1] === 'resend-verification' && method === 'POST') {
+      assertMemberWithoutVerification(user);
+      if (user.emailVerified) return response.status(200).json({ ok: true });
+      await checkRateLimit(sql, `verify:${user.id}`, 5, 3600);
+      const token = await issueAuthToken(sql, user.id, 'verify_email', 86400);
+      await sendAccountEmail({ to: user.email, subject: 'Verify your Stillwater account', heading: 'Confirm your email', message: `Hi ${user.displayName}, confirm your email address to join location discussions.`, actionLabel: 'Verify email', actionUrl: `${appBaseUrl(request)}/verify-email/?token=${encodeURIComponent(token)}` });
+      return response.status(200).json({ ok: true });
+    }
+
+    if (parts[0] === 'auth' && parts[1] === 'forgot-password' && method === 'POST') {
+      const email = cleanText(getBody(request).email, 254).toLowerCase();
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) fail(400, 'Enter a valid email address.');
+      await checkRateLimit(sql, `forgot:${hash(requestIp(request))}:${hash(email)}`, 4, 3600);
+      const accounts = await sql`SELECT id FROM public.community_users WHERE email = ${email} AND status = 'active' LIMIT 1`;
+      if (accounts[0]) {
+        try {
+          const token = await issueAuthToken(sql, accounts[0].id, 'password_reset', 3600);
+          await sendAccountEmail({ to: email, subject: 'Reset your Stillwater password', heading: 'Choose a new password', message: 'Use the link below to set a new password. The link expires in one hour.', actionLabel: 'Reset password', actionUrl: `${appBaseUrl(request)}/reset-password/?token=${encodeURIComponent(token)}` });
+        } catch (error) {
+          console.error('Password recovery email delivery failed:', error.message);
+        }
+      }
+      return response.status(200).json({ ok: true, message: 'If an account matches that email, we sent a password reset link.' });
+    }
+
+    if (parts[0] === 'auth' && parts[1] === 'reset-password' && method === 'POST') {
+      const body = getBody(request);
+      const token = cleanText(body.token, 100);
+      const password = typeof body.password === 'string' ? body.password : '';
+      if (password.length < 12 || Buffer.byteLength(password) > 128) fail(400, 'Password must be at least 12 characters and no more than 128 bytes.');
+      const rows = await sql`UPDATE public.community_auth_tokens SET consumed_at = now() WHERE token_hash = ${hash(token)} AND token_type = 'password_reset' AND consumed_at IS NULL AND expires_at > now() RETURNING user_id`;
+      if (!rows[0]) fail(400, 'Password reset link is invalid or expired.');
+      const passwordHash = await makePasswordHash(password);
+      await sql`UPDATE public.community_users SET password_hash = ${passwordHash}, updated_at = now() WHERE id = ${rows[0].user_id} AND status = 'active'`;
+      await sql`DELETE FROM public.community_sessions WHERE user_id = ${rows[0].user_id}`;
+      clearSessionCookie(response);
+      return response.status(200).json({ ok: true });
+    }
+
+    if (parts[0] === 'auth' && parts[1] === 'profile' && method === 'PATCH') {
+      assertMemberWithoutVerification(user);
+      const displayName = cleanText(getBody(request).displayName, 36);
+      if (displayName.length < 2 || !/^[\p{L}\p{N} _.-]+$/u.test(displayName)) fail(400, 'Choose a display name with 2–36 letters or numbers.');
+      const rows = await sql`UPDATE public.community_users SET display_name = ${displayName}, updated_at = now() WHERE id = ${user.id} RETURNING id, email, display_name AS "displayName", role, status, true AS "emailVerified"`;
+      return response.status(200).json({ user: publicUser(rows[0]) });
+    }
+
+    if (parts[0] === 'auth' && parts[1] === 'change-password' && method === 'POST') {
+      assertMemberWithoutVerification(user);
+      const body = getBody(request);
+      const currentPassword = typeof body.currentPassword === 'string' ? body.currentPassword : '';
+      const newPassword = typeof body.newPassword === 'string' ? body.newPassword : '';
+      const rows = await sql`SELECT password_hash FROM public.community_users WHERE id = ${user.id}`;
+      if (!rows[0] || !await passwordMatches(currentPassword, rows[0].password_hash)) fail(400, 'Current password is incorrect.');
+      if (newPassword.length < 12 || Buffer.byteLength(newPassword) > 128) fail(400, 'New password must be at least 12 characters and no more than 128 bytes.');
+      const passwordHash = await makePasswordHash(newPassword);
+      await sql`UPDATE public.community_users SET password_hash = ${passwordHash}, updated_at = now() WHERE id = ${user.id}`;
+      await sql`DELETE FROM public.community_sessions WHERE user_id = ${user.id}`;
+      clearSessionCookie(response);
+      return response.status(200).json({ ok: true, signedOut: true });
+    }
+
+    if (parts[0] === 'auth' && parts[1] === 'saved-locations' && method === 'GET') {
+      assertMember(user);
+      const locations = await sql`SELECT l.id, l.name, l.location_type AS "type", l.province FROM public.community_saved_locations s JOIN public.locations l ON l.id = s.location_id WHERE s.user_id = ${user.id} AND l.is_published = true ORDER BY s.created_at DESC`;
+      return response.status(200).json({ locations });
+    }
+
+    if (parts[0] === 'auth' && parts[1] === 'saved-locations' && ['POST', 'DELETE'].includes(method)) {
+      assertMember(user);
+      const locationId = cleanText(getBody(request).locationId, 80);
+      if (!/^[a-z0-9-]{1,80}$/.test(locationId)) fail(400, 'Choose a valid location.');
+      if (method === 'POST') {
+        const location = await sql`SELECT id FROM public.locations WHERE id = ${locationId} AND is_published = true`;
+        if (!location[0]) fail(404, 'Location not found.');
+        await sql`INSERT INTO public.community_saved_locations (user_id, location_id) VALUES (${user.id}, ${locationId}) ON CONFLICT DO NOTHING`;
+      } else await sql`DELETE FROM public.community_saved_locations WHERE user_id = ${user.id} AND location_id = ${locationId}`;
+      return response.status(200).json({ ok: true });
     }
 
     if (parts[0] === 'auth' && parts[1] === 'logout' && method === 'POST') {

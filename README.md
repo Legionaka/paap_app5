@@ -1,6 +1,6 @@
 # Stillwater
 
-Stillwater is a mobile first guide to fishing locations, conditions, species records and community knowledge.
+Stillwater is a mobile first fishing-water guide for South Africa. The public landing page is `/`; the location guide is `/explore/`. Visitors can browse without an account. Community accounts support location discussions and replies, moderation, email verification, password recovery, and saved waters synced across devices.
 
 ## Run locally
 
@@ -22,12 +22,15 @@ To run the DWS import once from the terminal, run `npm run import:dws` after set
 - `db/migrations/0004_location_directory.sql` adds initial sourced location records for Boskop, Vaalkop, and Roodekopjes dams. The published directory only includes entries with coordinates; access and fishing rules remain explicitly unverified unless sourced facts are added.
 - `db/migrations/0005_stage3_location_details.sql` expands the directory with five Western Cape dams, sourced species records, permit/access notes, and coordinate source dates. Apply after `0004_location_directory.sql` in Neon. The current directory is a sourced starter catalogue for North West and Western Cape, not an exhaustive national gazetteer. Access, facilities, and rules remain “not recorded” when a current authoritative source does not establish them; historical plans are not treated as current conditions.
 - `db/migrations/0006_stage4_dws_coverage.sql` maps official DWS reservoir-report labels to the published location IDs. Apply after `0005_stage3_location_details.sql`. The importer records only rows it recognizes in each dated report; a configured alias does not mean that the dam appears in every report.
+- `db/migrations/0007_stage5_accounts.sql` adds email verification and password recovery tokens plus account-synced saved waters. Apply it after `0006_stage4_dws_coverage.sql` before deploying Stage 5.
 - `server/location-api.js` reads published location records. Vercel serves it through `api/locations/[id].js`; the local development server exposes the same endpoint.
 - `GET /api/locations` returns the published directory for search and location selection. Each profile and location discussion is loaded by its database location ID.
 - `public/` contains browser-facing files only. Server modules, SQL migrations and credentials are outside the static output.
 - `server/dws-importer.js` follows the official DWS weekly status page to its dated reservoir PDF, matches configured location aliases, validates each capacity/storage row, and stores dated capacity facts and storage observations in Neon. Older reports and malformed values are rejected. A capacity change above 5% is held for review. This is weekly reporting, not a live sensor feed.
 - The DWS weekly report does not list every dam in South Africa. Import-run metadata records which configured locations matched each report, so missing rows stay missing instead of being inferred from provincial totals.
 - `server/community-api.js` provides account registration and sign-in, location discussion posts and replies, content reports, and moderator actions. Explicit Vercel route files under `api/community/` map each nested endpoint to the shared handler. Session cookies are HttpOnly, SameSite=Lax and Secure in production; passwords use Node's scrypt; user-generated text is rendered as text; write endpoints enforce same-origin JSON requests and database-backed rate limits.
+- Registration, verification, password recovery, and verification resend use Resend. Email actions require a verified sending domain and the `RESEND_API_KEY` and `EMAIL_FROM` environment variables. `APP_BASE_URL` should be set to the canonical production origin (for example `https://your-domain.example`) so emails always link to the production site.
+- Account pages are `/sign-in/`, `/register/`, `/account/`, `/forgot-password/`, `/reset-password/`, and `/verify-email/`. The API endpoint `/api/health` reports whether Neon can be reached; monitor its HTTP status and Vercel function logs.
 - `vercel.json` schedules the import once daily at 06:00 UTC. Vercel cron jobs run on production deployments; Hobby plan jobs can run at any point during their scheduled hour. Vercel does not retry failed cron invocations, so check the function logs and the `data_ingest_runs` table.
 
 ## Vercel environment variables
@@ -37,6 +40,9 @@ Add these in the Vercel project settings for Production:
 - `DATABASE_URL`: pooled Neon connection string used by the read-only location API.
 - `CRON_SECRET`: random secret with at least 16 characters. Vercel sends this to the scheduled endpoint as a bearer token.
 - `INGEST_DATABASE_URL`: optional separate Neon role for the importer. If unset, the importer falls back to `DATABASE_URL`; use a restricted writer role for production.
+- `RESEND_API_KEY`: server-only Resend API key used for verification and password recovery email.
+- `EMAIL_FROM`: sender address on a domain verified with Resend, for example `Stillwater <accounts@your-domain.example>`.
+- `APP_BASE_URL`: canonical production origin used to generate email links.
 
 The Neon credentials must remain server-side. Do not add them to frontend code or commit them to the repository. Vercel Cron invokes the import only after a production deployment. DWS report reuse terms should be confirmed before commercial redistribution.
 
@@ -48,7 +54,7 @@ SET role = 'moderator', updated_at = now()
 WHERE email = 'moderator@example.com';
 ```
 
-The forum supports password accounts without an email delivery integration, so this release does not verify email ownership or provide password reset emails. Configure an email provider and verification/reset flows before relying on email identity for sensitive community actions.
+After applying migration `0007`, configure the email variables in Vercel and redeploy. Existing accounts remain unverified until their owners use the verification flow; community posting and account-synced saved waters require a verified address. Registration and verification resend require working email delivery. Password recovery always shows the same response to protect account privacy; check Vercel function logs if a reset email is not delivered.
 
 In Vercel, use the **Other** framework preset, leave the build command blank, and set the output directory to `public` (also recorded in `vercel.json`).
 

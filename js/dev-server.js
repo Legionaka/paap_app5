@@ -28,6 +28,19 @@ createServer(async (request, response) => {
 
   const apiMatch = pathname.match(/^\/api\/locations\/([a-z0-9-]+)$/);
   if (pathname.startsWith('/api/')) {
+    if (pathname === '/api/health' && ['GET', 'HEAD'].includes(request.method)) {
+      try {
+        const { neon } = await import('@neondatabase/serverless');
+        if (!process.env.DATABASE_URL) throw new Error('Database is not configured');
+        await neon(process.env.DATABASE_URL)`SELECT 1`;
+        const body = JSON.stringify({ status: 'ok', database: 'ok', timestamp: new Date().toISOString() });
+        response.writeHead(200, { 'Cache-Control': 'no-store', 'Content-Type': 'application/json; charset=utf-8' }).end(request.method === 'HEAD' ? undefined : body);
+      } catch {
+        const body = JSON.stringify({ status: 'unavailable', database: 'unavailable' });
+        response.writeHead(503, { 'Cache-Control': 'no-store', 'Content-Type': 'application/json; charset=utf-8' }).end(request.method === 'HEAD' ? undefined : body);
+      }
+      return;
+    }
     if (pathname === '/api/locations' && ['GET', 'HEAD'].includes(request.method)) {
       try {
         const locations = await getPublishedLocations();
@@ -50,8 +63,8 @@ createServer(async (request, response) => {
 
     const communityMatch = pathname.match(/^\/api\/community\/(.+)$/);
     if (communityMatch) {
-      if (!['GET', 'POST', 'HEAD'].includes(request.method)) {
-        response.writeHead(405, { Allow: 'GET, POST', 'Content-Type': 'application/json; charset=utf-8' }).end('{"error":"Method not allowed"}');
+      if (!['GET', 'POST', 'PATCH', 'DELETE', 'HEAD'].includes(request.method)) {
+        response.writeHead(405, { Allow: 'GET, POST, PATCH, DELETE', 'Content-Type': 'application/json; charset=utf-8' }).end('{"error":"Method not allowed"}');
         return;
       }
       const chunks = [];
@@ -138,7 +151,8 @@ createServer(async (request, response) => {
     return;
   }
 
-  const relativePath = pathname === '/' ? 'index.html' : pathname.replace(/^\/+/, '');
+  const normalizedPath = pathname === '/' ? '/index.html' : pathname.endsWith('/') ? `${pathname}index.html` : pathname;
+  const relativePath = normalizedPath.replace(/^\/+/, '');
   const topLevel = relativePath.split(/[\\/]/)[0];
   if (['server', 'db', '.git', 'node_modules'].includes(topLevel)
     || /^(\.env|package(?:-lock)?\.json|README\.md)$/i.test(relativePath)) {

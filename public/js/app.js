@@ -362,7 +362,10 @@ async function initialise() {
     locationIndex = result.locations ?? [];
     renderLocationCards(search.value);
     if (locationIndex.length === 0) throw new Error('No published fishing locations are available');
-    const requestedId = new URLSearchParams(location.search).get('location');
+    const params = new URLSearchParams(location.search);
+    const query = params.get('q');
+    if (query) { search.value = query; renderLocationCards(query); }
+    const requestedId = params.get('location');
     const selected = locationIndex.find(item => item.id === requestedId)
       ?? locationIndex.find(item => item.id === 'hartbeespoort-dam')
       ?? locationIndex[0];
@@ -417,7 +420,6 @@ window.setInterval(() => {
   }
 }, 15 * 60 * 1000);
 
-// Saved locations remain local to this browser in Stage 3.
 document.querySelector('.save-button').addEventListener('click', event => {
   const button = event.currentTarget;
   const name = activeLocation?.name ?? 'Location';
@@ -426,6 +428,10 @@ document.querySelector('.save-button').addEventListener('click', event => {
   if (saved) savedLocationIds.delete(activeLocationId);
   else savedLocationIds.add(activeLocationId);
   try { localStorage.setItem('stillwater-saved-locations', JSON.stringify([...savedLocationIds])); } catch { /* Session state still updates. */ }
+  if (forumUser?.emailVerified) {
+    communityRequest('auth/saved-locations', { method: saved ? 'DELETE' : 'POST', body: JSON.stringify({ locationId: activeLocationId }) })
+      .catch(error => showToast(error.message));
+  }
   button.classList.toggle('saved', !saved);
   button.setAttribute('aria-label', !saved ? `Remove ${name} from saved locations` : `Save ${name}`);
   showToast(!saved ? `${name} saved to your waters` : `Removed ${name} from your saved waters`);
@@ -459,11 +465,9 @@ document.querySelectorAll('.main-nav a, .mobile-nav a').forEach(link => link.add
 const forumPosts = document.querySelector('#forumPosts');
 const forumAccount = document.querySelector('#forumAccount');
 const forumNotices = document.querySelector('#forumNotices');
-const authDialog = document.querySelector('#authDialog');
 const postDialog = document.querySelector('#postDialog');
 const reportDialog = document.querySelector('#reportDialog');
 let forumUser = null;
-let authMode = 'login';
 
 async function communityRequest(path, options = {}) {
   const response = await fetch(`/api/community/${path}`, {
@@ -498,10 +502,10 @@ function addButton(parent, text, className, onClick) {
 function reportContent(targetType, targetId) {
   if (!forumUser) {
     setForumNotice('Sign in to report content.', true);
-    authMode = 'login';
-    openAuthDialog();
+    location.assign(`/sign-in/?returnTo=${encodeURIComponent(location.pathname + location.search + '#community')}`);
     return;
   }
+  if (!forumUser.emailVerified) { setForumNotice('Verify your email before reporting content. Visit your account page.', true); return; }
   const form = document.querySelector('#reportForm');
   form.elements.targetType.value = targetType;
   form.elements.targetId.value = targetId;
@@ -524,10 +528,10 @@ function renderReplies(container, replies, post) {
     const body = document.createElement('p');
     body.textContent = reply.body;
     card.append(header, body);
-    if (forumUser) addButton(card, 'Report', 'text-action', () => reportContent('reply', reply.id));
+    if (forumUser?.emailVerified) addButton(card, 'Report', 'text-action', () => reportContent('reply', reply.id));
     container.append(card);
   }
-  if (forumUser && !post.isLocked) {
+  if (forumUser?.emailVerified && !post.isLocked) {
     const form = document.createElement('form');
     form.className = 'reply-form';
     const field = document.createElement('input');
@@ -597,7 +601,7 @@ function renderPosts(posts) {
     const replyCount = document.createElement('span');
     replyCount.textContent = `${post.replyCount} ${post.replyCount === 1 ? 'reply' : 'replies'}`;
     actions.append(replyCount);
-    if (forumUser) addButton(actions, 'Report', 'text-action', () => reportContent('post', post.id));
+    if (forumUser?.emailVerified) addButton(actions, 'Report', 'text-action', () => reportContent('post', post.id));
     article.append(meta, title, content, actions);
     const replies = document.createElement('div');
     replies.className = 'forum-replies';
@@ -623,6 +627,13 @@ function renderForumAccount(user) {
       await loadCommunity();
     } catch (error) { setForumNotice(error.message, true); }
   });
+  if (!user.emailVerified) {
+    const verify = document.createElement('a');
+    verify.href = '/account/';
+    verify.textContent = 'Verify email to post';
+    verify.className = 'text-action';
+    forumAccount.append(verify);
+  }
 }
 
 async function loadModeration() {
@@ -673,6 +684,18 @@ async function loadCommunity() {
   try {
     const data = await communityRequest(encodeURIComponent(activeLocationId));
     forumUser = data.user;
+    if (forumUser?.emailVerified) {
+      try {
+        const saved = await communityRequest('auth/saved-locations');
+        const remoteIds = new Set(saved.locations.map(location => location.id));
+        for (const id of savedLocationIds) {
+          if (!remoteIds.has(id)) await communityRequest('auth/saved-locations', { method: 'POST', body: JSON.stringify({ locationId: id }) }).catch(() => {});
+        }
+        for (const id of remoteIds) savedLocationIds.add(id);
+        localStorage.setItem('stillwater-saved-locations', JSON.stringify([...savedLocationIds]));
+        document.querySelector('.save-button').classList.toggle('saved', savedLocationIds.has(activeLocationId));
+      } catch { /* Local saved waters remain available when sync is unavailable. */ }
+    }
     renderForumAccount(forumUser);
     renderPosts(data.posts);
     await loadModeration();
@@ -681,48 +704,17 @@ async function loadCommunity() {
   }
 }
 
-function openAuthDialog() {
-  document.querySelector('#authError').textContent = '';
-  setAuthMode(authMode);
-  authDialog.showModal();
-}
+function goToSignIn() { location.assign(`/sign-in/?returnTo=${encodeURIComponent(location.pathname + location.search + '#community')}`); }
 
-function setAuthMode(mode) {
-  authMode = mode;
-  const registration = mode === 'register';
-  document.querySelector('#authTitle').textContent = registration ? 'Create your account' : 'Sign in';
-  document.querySelector('#authSubmit').textContent = registration ? 'Create account' : 'Sign in';
-  document.querySelector('#displayNameField').hidden = !registration;
-  document.querySelector('#displayNameField input').required = registration;
-  document.querySelector('#authForm [name="password"]').autocomplete = registration ? 'new-password' : 'current-password';
-  document.querySelectorAll('.auth-tab').forEach(tab => tab.classList.toggle('active', tab.dataset.authMode === mode));
-}
-
-document.querySelector('#forumSignIn').addEventListener('click', () => { authMode = 'login'; openAuthDialog(); });
+document.querySelector('#forumSignIn').addEventListener('click', goToSignIn);
 document.querySelector('#newDiscussion').addEventListener('click', () => {
-  if (!forumUser) { authMode = 'login'; openAuthDialog(); return; }
+  if (!forumUser) { goToSignIn(); return; }
+  if (!forumUser.emailVerified) { setForumNotice('Verify your email from your account page before starting a discussion.', true); return; }
   document.querySelector('#postError').textContent = '';
   postDialog.showModal();
 });
-document.querySelectorAll('[data-auth-mode]').forEach(tab => tab.addEventListener('click', () => setAuthMode(tab.dataset.authMode)));
 document.querySelectorAll('[data-close-dialog]').forEach(button => button.addEventListener('click', () => button.closest('dialog').close()));
 document.querySelectorAll('dialog').forEach(dialog => dialog.addEventListener('click', event => { if (event.target === dialog) dialog.close(); }));
-
-document.querySelector('#authForm').addEventListener('submit', async event => {
-  event.preventDefault();
-  const form = event.currentTarget;
-  const errorBox = document.querySelector('#authError');
-  errorBox.textContent = '';
-  const data = Object.fromEntries(new FormData(form));
-  try {
-    const result = await communityRequest(`auth/${authMode === 'register' ? 'register' : 'login'}`, { method: 'POST', body: JSON.stringify(data) });
-    forumUser = result.user;
-    authDialog.close();
-    form.reset();
-    await loadCommunity();
-    setForumNotice(`Welcome, ${forumUser.displayName}.`);
-  } catch (error) { errorBox.textContent = error.message; }
-});
 
 document.querySelector('#postForm').addEventListener('submit', async event => {
   event.preventDefault();
