@@ -3,7 +3,7 @@ import { createReadStream } from 'node:fs';
 import { stat } from 'node:fs/promises';
 import { extname, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { getPublishedLocation } from '../server/location-api.js';
+import { getPublishedLocation, getPublishedLocations } from '../server/location-api.js';
 import communityHandler from '../server/community-api.js';
 
 const root = resolve(fileURLToPath(new URL('../public', import.meta.url)));
@@ -28,6 +28,26 @@ createServer(async (request, response) => {
 
   const apiMatch = pathname.match(/^\/api\/locations\/([a-z0-9-]+)$/);
   if (pathname.startsWith('/api/')) {
+    if (pathname === '/api/locations' && ['GET', 'HEAD'].includes(request.method)) {
+      try {
+        const locations = await getPublishedLocations();
+        const body = JSON.stringify({ locations });
+        response.writeHead(200, {
+          'Cache-Control': 'public, max-age=60, stale-while-revalidate=300',
+          'Content-Length': Buffer.byteLength(body),
+          'Content-Type': 'application/json; charset=utf-8',
+          'X-Content-Type-Options': 'nosniff',
+        });
+        response.end(request.method === 'HEAD' ? undefined : body);
+      } catch (error) {
+        const statusCode = error.statusCode === 503 ? 503 : 500;
+        console.error('Location directory request failed:', error.message);
+        const body = JSON.stringify({ error: statusCode === 503 ? 'Database is not configured' : 'Location directory is temporarily unavailable' });
+        response.writeHead(statusCode, { 'Content-Type': 'application/json; charset=utf-8' }).end(body);
+      }
+      return;
+    }
+
     const communityMatch = pathname.match(/^\/api\/community\/(.+)$/);
     if (communityMatch) {
       if (!['GET', 'POST', 'HEAD'].includes(request.method)) {

@@ -1,6 +1,12 @@
-const LOCATION_API_URL = '/api/locations/hartbeespoort-dam';
 const WEATHER_TIME_ZONE = 'Africa/Johannesburg';
 const catalogSources = new Map();
+let locationIndex = [];
+let activeLocationId = null;
+let activeLocation = null;
+let savedLocationIds = new Set();
+try {
+  savedLocationIds = new Set(JSON.parse(localStorage.getItem('stillwater-saved-locations') ?? '[]'));
+} catch { /* Keep saving available for this session when storage is blocked. */ }
 const search = document.querySelector('#locationSearch');
 const toast = document.querySelector('#toast');
 let toastTimer;
@@ -18,30 +24,74 @@ function formatReportDate(date) {
   }).format(new Date(`${date}T12:00:00+02:00`));
 }
 
+function renderCitedFact(element, fact, fallback) {
+  const value = fact
+    ? (typeof fact.value === 'string' ? fact.value : JSON.stringify(fact.value))
+    : fallback;
+  element.replaceChildren(document.createTextNode(value));
+  if (!fact) return;
+  const source = catalogSources.get(fact.sourceId);
+  const notes = [];
+  if (fact.sourceDate) notes.push(formatReportDate(fact.sourceDate));
+  if (fact.status) notes.push(fact.status.replaceAll('-', ' '));
+  if (notes.length || source) element.append(document.createTextNode(` · ${notes.join(' · ')}`));
+  if (source) {
+    const link = document.createElement('a');
+    link.href = source.url;
+    link.target = '_blank';
+    link.rel = 'noreferrer';
+    link.textContent = source.title;
+    element.append(document.createTextNode(' · '), link);
+  }
+}
+
 function renderCatalog(location) {
+  activeLocation = location;
   for (const source of location.sources) catalogSources.set(source.id, source);
-  document.querySelector('#speciesSourceLink').href = catalogSources.get('dws-crocodile-water-quality')?.url ?? '#';
+  const speciesSource = location.species[0]?.sourceId;
+  document.querySelector('#speciesSourceLink').href = catalogSources.get(speciesSource)?.url ?? '#';
   document.querySelector('#weatherSourceLink').href = catalogSources.get('open-meteo-weather')?.url ?? '#';
 
   document.querySelector('#featureTitle').textContent = location.name;
+  document.title = `${location.name} — Stillwater`;
+  document.querySelector('.feature-summary p').textContent = `${location.name} is a ${location.type} in ${location.province}, South Africa${location.river ? ` on the ${location.river}` : ''}. Access conditions and fishing rules are shown only when verified for this location.`;
+  const waterType = document.querySelector('.feature-meta > span');
+  const typeLabel = location.type.replaceAll('_', ' ');
+  waterType.replaceChildren(waterType.querySelector('svg'), document.createTextNode(` Freshwater ${typeLabel}`));
   const locationLine = document.querySelector('.image-caption .image-location');
   const pinIcon = locationLine.querySelector('svg');
-  const separator = document.createElement('span');
-  separator.className = 'sep';
-  separator.textContent = '\u00b7';
-  const riverLabel = document.createElement('span');
-  riverLabel.id = 'locationRiver';
-  riverLabel.textContent = location.river;
-  locationLine.replaceChildren(pinIcon, document.createTextNode(` ${location.province}, ${location.country} `), separator, document.createTextNode(' '), riverLabel);
+  document.querySelector('#locationPlaceLine').textContent = [location.province, location.country, location.river].filter(Boolean).join(' · ');
+  locationLine.replaceChildren(pinIcon, document.querySelector('#locationPlaceLine'));
   document.querySelector('#factProvince').textContent = location.province;
   document.querySelector('#factRiver').textContent = location.river;
+  document.querySelector('#factWaterType').textContent = `Freshwater ${typeLabel}`;
+  const access = location.facts.find(fact => fact.key === 'access_information');
+  const rules = location.facts.find(fact => fact.key === 'fishing_rules');
+  renderCitedFact(document.querySelector('#factAccess'), access, 'Not verified');
+  renderCitedFact(document.querySelector('#factRules'), rules, 'Not verified');
+  document.querySelector('#communityLocationLabel').textContent = `${location.name.toLocaleUpperCase()} COMMUNITY`;
+  document.querySelector('#postLocationLabel').textContent = `${location.name.toLocaleUpperCase()} COMMUNITY`;
+  const sourceNote = document.querySelector('#locationSourceNote');
+  const coordinateSource = catalogSources.get(location.coordinates.sourceId);
+  sourceNote.replaceChildren(document.createTextNode('Location and approximate coordinates from '));
+  const coordinateLink = document.createElement('a');
+  coordinateLink.href = coordinateSource?.url ?? '#';
+  coordinateLink.target = '_blank';
+  coordinateLink.rel = 'noreferrer';
+  coordinateLink.textContent = coordinateSource?.title ?? 'unavailable source record';
+  sourceNote.append(coordinateLink, document.createTextNode(`; ${location.coordinates.precision} precision.`));
   document.querySelector('#factCoordinates').textContent = `${Math.abs(location.coordinates.latitude).toFixed(2)}\u00b0 S, ${location.coordinates.longitude.toFixed(2)}\u00b0 E (approx.)`;
   document.querySelector('#coordinatesFact').textContent = `Approx. ${Math.abs(location.coordinates.latitude).toFixed(2)}\u00b0 S, ${location.coordinates.longitude.toFixed(2)}\u00b0 E`;
 
   const capacity = location.facts.find(fact => fact.key === 'full_supply_capacity');
+  const capacityMeta = document.querySelector('#capacityFact');
+  const capacityFact = document.querySelector('#factCapacity');
   if (capacity) {
-    document.querySelector('#capacityFact').lastChild.textContent = ` ${capacity.value} ${capacity.unit} full supply capacity`;
-    document.querySelector('#factCapacity').textContent = `${capacity.value} ${capacity.unit} · DWS report ${formatReportDate(capacity.sourceDate)}`;
+    capacityMeta.replaceChildren(capacityMeta.querySelector('svg'), document.createTextNode(` ${capacity.value} ${capacity.unit} full supply capacity`));
+    renderCitedFact(capacityFact, { ...capacity, value: `${capacity.value} ${capacity.unit}` }, 'Not recorded');
+  } else {
+    capacityMeta.replaceChildren(capacityMeta.querySelector('svg'), document.createTextNode(' Capacity not recorded'));
+    capacityFact.textContent = 'Not recorded';
   }
 
   const storage = location.observations.find(item => item.metric === 'storage_percent_full_supply');
@@ -73,10 +123,21 @@ function renderCatalog(location) {
       ] : []),
       document.createTextNode(`. It is not a live sensor reading${storage.latestAvailable ? '; DWS marks it as the latest available data' : ''}. Percentages may exceed 100% of full supply.`),
     );
+  } else {
+    document.querySelector('#factLevel').textContent = 'No level report recorded';
+    document.querySelector('#factCheckedAt').textContent = 'Not recorded';
+    document.querySelector('#storageSourceNote').textContent = 'No storage reading is currently recorded for this location.';
   }
 
   const speciesList = document.querySelector('#speciesList');
   speciesList.replaceChildren();
+  document.querySelector('#speciesSourceLink').hidden = location.species.length === 0;
+  if (location.species.length === 0) {
+    const empty = document.createElement('p');
+    empty.className = 'source-footnote';
+    empty.textContent = 'No sourced species records are available for this location yet.';
+    speciesList.append(empty);
+  }
   for (const item of location.species) {
     const card = document.createElement('article');
     card.className = 'species-card verified-species';
@@ -88,12 +149,48 @@ function renderCatalog(location) {
     info.className = 'species-info';
     const label = document.createElement('span');
     label.className = 'species-type green';
-    label.textContent = 'IN DWS ECOLOGICAL REPORT';
+    label.textContent = item.status.replaceAll('-', ' ').toLocaleUpperCase();
     const name = document.createElement('h3');
     name.textContent = item.name;
     info.append(label, name);
     card.append(marker, info);
     speciesList.append(card);
+  }
+}
+
+function renderLocationCards(query = '') {
+  const grid = document.querySelector('#locationCards');
+  const normalized = query.trim().toLocaleLowerCase();
+  const matches = locationIndex.filter(location => [location.name, location.province, location.river, location.type]
+    .filter(Boolean).join(' ').toLocaleLowerCase().includes(normalized));
+  document.querySelector('#directoryCount').textContent = `${matches.length} ${matches.length === 1 ? 'location' : 'locations'}`;
+  grid.replaceChildren();
+  if (matches.length === 0) {
+    const empty = document.createElement('p');
+    empty.className = 'forum-loading';
+    empty.textContent = 'No locations match that search.';
+    grid.append(empty);
+    return;
+  }
+  for (const location of matches) {
+    const card = document.createElement('button');
+    card.type = 'button';
+    card.className = `location-card${location.id === activeLocationId ? ' selected' : ''}`;
+    card.setAttribute('aria-pressed', String(location.id === activeLocationId));
+    const tag = document.createElement('span');
+    tag.className = 'location-card-type';
+    tag.textContent = location.type.replaceAll('_', ' ');
+    const name = document.createElement('strong');
+    name.textContent = location.name;
+    const detail = document.createElement('span');
+    detail.className = 'location-card-detail';
+    detail.textContent = [location.province, location.river].filter(Boolean).join(' · ');
+    const coverage = document.createElement('span');
+    coverage.className = 'location-card-coverage';
+    coverage.textContent = `${location.factCount} sourced ${location.factCount === 1 ? 'specification' : 'specifications'} · access details shown when verified`;
+    card.append(tag, name, detail, coverage);
+    card.addEventListener('click', () => selectLocation(location.id));
+    grid.append(card);
   }
 }
 
@@ -176,47 +273,93 @@ async function loadWeather(coordinates) {
 }
 
 async function initialise() {
-  let location;
   try {
-    const response = await fetch(LOCATION_API_URL, { cache: 'no-store' });
-    if (!response.ok) throw new Error(`Location API returned ${response.status}`);
+    const response = await fetch('/api/locations', { cache: 'no-store' });
+    if (!response.ok) throw new Error(`Location directory returned ${response.status}`);
     const result = await response.json();
-    location = result.location;
-    if (!location) throw new Error('Hartbeespoort Dam is missing from the location catalogue');
-    renderCatalog(location);
+    locationIndex = result.locations ?? [];
+    renderLocationCards(search.value);
+    if (locationIndex.length === 0) throw new Error('No published fishing locations are available');
+    const requestedId = new URLSearchParams(location.search).get('location');
+    const selected = locationIndex.find(item => item.id === requestedId)
+      ?? locationIndex.find(item => item.id === 'hartbeespoort-dam')
+      ?? locationIndex[0];
+    await selectLocation(selected.id, false);
   } catch (error) {
-    console.error('Could not load location data:', error);
+    console.error('Could not load location directory:', error);
+    document.querySelector('#directoryCount').textContent = 'Locations unavailable';
+    document.querySelector('#locationCards').textContent = 'Location data is temporarily unavailable.';
     document.querySelector('#weatherUpdated').textContent = 'Location data unavailable';
     document.querySelector('#currentWeather').textContent = 'Location data unavailable';
     return;
   }
-
-  try {
-    await loadWeather(location.coordinates);
-  } catch (error) {
-    console.error('Could not load weather forecast:', error);
-    document.querySelector('#currentWeather').textContent = 'Forecast unavailable';
-    document.querySelector('#weatherUpdated').textContent = 'Weather data unavailable';
-    document.querySelector('#hourlyForecast').textContent = 'Forecast unavailable. Try again later.';
-  }
-
-  window.setInterval(() => {
-    if (!document.hidden) loadWeather(location.coordinates).catch(error => console.error('Weather refresh failed:', error));
-  }, 15 * 60 * 1000);
 }
 
-// Save state is local to this browser until accounts and persistence are added.
+async function selectLocation(locationId, updateUrl = true) {
+  try {
+    const response = await fetch(`/api/locations/${encodeURIComponent(locationId)}`, { cache: 'no-store' });
+    if (!response.ok) throw new Error(`Location API returned ${response.status}`);
+    const result = await response.json();
+    if (!result.location) throw new Error('Location is not available in the catalogue');
+    activeLocationId = locationId;
+    renderLocationCards(search.value);
+    renderCatalog(result.location);
+    const saveButton = document.querySelector('.save-button');
+    saveButton.classList.toggle('saved', savedLocationIds.has(locationId));
+    saveButton.setAttribute('aria-label', savedLocationIds.has(locationId) ? `Remove ${result.location.name} from saved locations` : `Save ${result.location.name}`);
+    if (updateUrl) {
+      const url = new URL(window.location.href);
+      url.searchParams.set('location', locationId);
+      window.history.replaceState({}, '', url);
+      document.querySelector('#featureTitle').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+    await loadCommunity();
+    try {
+      await loadWeather(result.location.coordinates);
+    } catch (error) {
+      console.error('Could not load weather forecast:', error);
+      document.querySelector('#currentWeather').textContent = 'Forecast unavailable';
+      document.querySelector('#weatherUpdated').textContent = 'Weather data unavailable';
+      document.querySelector('#hourlyForecast').textContent = 'Forecast unavailable. Try again later.';
+    }
+  } catch (error) {
+    console.error('Could not load selected location:', error);
+    showToast('That location could not be loaded');
+  }
+}
+
+window.setInterval(() => {
+  if (!document.hidden && activeLocation?.coordinates) {
+    loadWeather(activeLocation.coordinates).catch(error => console.error('Weather refresh failed:', error));
+  }
+}, 15 * 60 * 1000);
+
+// Saved locations remain local to this browser in Stage 3.
 document.querySelector('.save-button').addEventListener('click', event => {
   const button = event.currentTarget;
-  const saved = button.classList.toggle('saved');
-  button.setAttribute('aria-label', saved ? 'Remove Hartbeespoort Dam from saved locations' : 'Save Hartbeespoort Dam');
-  showToast(saved ? 'Hartbeespoort Dam saved to your waters' : 'Removed from your saved waters');
+  const name = activeLocation?.name ?? 'Location';
+  if (!activeLocationId) return;
+  const saved = savedLocationIds.has(activeLocationId);
+  if (saved) savedLocationIds.delete(activeLocationId);
+  else savedLocationIds.add(activeLocationId);
+  try { localStorage.setItem('stillwater-saved-locations', JSON.stringify([...savedLocationIds])); } catch { /* Session state still updates. */ }
+  button.classList.toggle('saved', !saved);
+  button.setAttribute('aria-label', !saved ? `Remove ${name} from saved locations` : `Save ${name}`);
+  showToast(!saved ? `${name} saved to your waters` : `Removed ${name} from your saved waters`);
 });
 
-document.querySelector('#locationButton').addEventListener('click', () => showToast('More verified locations will be added to the catalogue'));
+document.querySelector('#locationButton').addEventListener('click', () => {
+  document.querySelector('#directory').scrollIntoView({ behavior: 'smooth' });
+  search.focus();
+});
+search.addEventListener('input', () => renderLocationCards(search.value));
 search.addEventListener('keydown', event => {
-  if (event.key === 'Enter' && search.value.trim()) {
-    showToast('Hartbeespoort Dam is the first location in the catalogue');
+  if (event.key === 'Enter') {
+    event.preventDefault();
+    const normalized = search.value.trim().toLocaleLowerCase();
+    const match = locationIndex.find(item => [item.name, item.province, item.river, item.type]
+      .filter(Boolean).join(' ').toLocaleLowerCase().includes(normalized));
+    if (match) selectLocation(match.id);
   }
 });
 document.addEventListener('keydown', event => {
@@ -443,8 +586,9 @@ async function loadModeration() {
 }
 
 async function loadCommunity() {
+  if (!activeLocationId) return;
   try {
-    const data = await communityRequest('hartbeespoort-dam');
+    const data = await communityRequest(encodeURIComponent(activeLocationId));
     forumUser = data.user;
     renderForumAccount(forumUser);
     renderPosts(data.posts);
@@ -503,7 +647,7 @@ document.querySelector('#postForm').addEventListener('submit', async event => {
   const errorBox = document.querySelector('#postError');
   errorBox.textContent = '';
   try {
-    await communityRequest('hartbeespoort-dam/posts', { method: 'POST', body: JSON.stringify(Object.fromEntries(new FormData(form))) });
+    await communityRequest(`${encodeURIComponent(activeLocationId)}/posts`, { method: 'POST', body: JSON.stringify(Object.fromEntries(new FormData(form))) });
     postDialog.close();
     form.reset();
     await loadCommunity();
@@ -525,4 +669,3 @@ document.querySelector('#reportForm').addEventListener('submit', async event => 
 });
 
 initialise();
-loadCommunity();

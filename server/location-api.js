@@ -2,6 +2,26 @@ import { neon } from '@neondatabase/serverless';
 
 const toSourceType = value => value.replaceAll('_', '-');
 
+export async function getPublishedLocations() {
+  const connectionString = process.env.DATABASE_URL;
+  if (!connectionString) {
+    const error = new Error('DATABASE_URL is not configured');
+    error.statusCode = 503;
+    throw error;
+  }
+  const sql = neon(connectionString);
+  return sql`
+    SELECT l.id, l.name, l.location_type AS type, l.province, l.country_code AS country,
+           l.river_name AS river,
+           (SELECT count(*)::int FROM public.location_facts f WHERE f.location_id = l.id) AS "factCount",
+           (SELECT max(f.checked_at) FROM public.location_facts f WHERE f.location_id = l.id) AS "lastCheckedAt"
+    FROM public.locations l
+    WHERE l.is_published = true AND l.point IS NOT NULL
+    ORDER BY l.province, l.name
+    LIMIT 250
+  `;
+}
+
 export async function getPublishedLocation(locationId) {
   const connectionString = process.env.DATABASE_URL;
   if (!connectionString) {
