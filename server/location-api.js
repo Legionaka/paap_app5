@@ -36,11 +36,12 @@ export async function getPublishedLocation(locationId) {
                extensions.st_y(point::extensions.geometry) AS latitude,
                extensions.st_x(point::extensions.geometry) AS longitude,
                coordinate_precision AS precision, coordinate_source_id AS "coordinateSourceId",
+               to_jsonb(loc) ->> 'coordinate_source_date' AS "coordinateSourceDate",
                river_name AS river
-        FROM public.locations
+        FROM public.locations loc
         WHERE id = ${locationId} AND is_published = true AND point IS NOT NULL`,
     sql`SELECT fact_key AS key, value, unit, source_id AS "sourceId",
-               source_data_date AS "sourceDate",
+               source_data_date AS "sourceDate", checked_at AS "checkedAt",
                replace(verification_status, '_', '-') AS status
         FROM public.location_facts
         WHERE location_id = ${locationId}
@@ -56,6 +57,7 @@ export async function getPublishedLocation(locationId) {
           AND EXISTS (SELECT 1 FROM public.locations WHERE id = ${locationId} AND is_published = true)
         ORDER BY observed_at DESC`,
     sql`SELECT s.common_name AS name, ls.source_id AS "sourceId",
+               ls.source_data_date AS "sourceDate", ls.checked_at AS "checkedAt",
                replace(ls.evidence_type, '_', '-') AS status
         FROM public.location_species ls
         JOIN public.species s ON s.id = ls.species_id
@@ -84,6 +86,7 @@ export async function getPublishedLocation(locationId) {
       longitude: row.longitude,
       precision: row.precision,
       sourceId: row.coordinateSourceId,
+      sourceDate: row.coordinateSourceDate,
     },
     river: row.river,
     facts: facts.map(item => ({ ...item, label: item.key.replaceAll('_', ' ') })),

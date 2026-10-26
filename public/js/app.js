@@ -32,7 +32,8 @@ function renderCitedFact(element, fact, fallback) {
   if (!fact) return;
   const source = catalogSources.get(fact.sourceId);
   const notes = [];
-  if (fact.sourceDate) notes.push(formatReportDate(fact.sourceDate));
+  if (fact.sourceDate) notes.push(`source dated ${formatReportDate(fact.sourceDate)}`);
+  if (fact.checkedAt) notes.push(`checked ${formatReportDate(fact.checkedAt.slice(0, 10))}`);
   if (fact.status) notes.push(fact.status.replaceAll('-', ' '));
   if (notes.length || source) element.append(document.createTextNode(` · ${notes.join(' · ')}`));
   if (source) {
@@ -66,8 +67,10 @@ function renderCatalog(location) {
   document.querySelector('#factRiver').textContent = location.river;
   document.querySelector('#factWaterType').textContent = `Freshwater ${typeLabel}`;
   const access = location.facts.find(fact => fact.key === 'access_information');
+  const facilities = location.facts.find(fact => fact.key === 'facilities');
   const rules = location.facts.find(fact => fact.key === 'fishing_rules');
   renderCitedFact(document.querySelector('#factAccess'), access, 'Not verified');
+  renderCitedFact(document.querySelector('#factFacilities'), facilities, 'Not recorded');
   renderCitedFact(document.querySelector('#factRules'), rules, 'Not verified');
   document.querySelector('#communityLocationLabel').textContent = `${location.name.toLocaleUpperCase()} COMMUNITY`;
   document.querySelector('#postLocationLabel').textContent = `${location.name.toLocaleUpperCase()} COMMUNITY`;
@@ -79,7 +82,7 @@ function renderCatalog(location) {
   coordinateLink.target = '_blank';
   coordinateLink.rel = 'noreferrer';
   coordinateLink.textContent = coordinateSource?.title ?? 'unavailable source record';
-  sourceNote.append(coordinateLink, document.createTextNode(`; ${location.coordinates.precision} precision.`));
+  sourceNote.append(coordinateLink, document.createTextNode(`; ${location.coordinates.precision} precision${location.coordinates.sourceDate ? `, source dated ${formatReportDate(location.coordinates.sourceDate)}` : ''}.`));
   document.querySelector('#factCoordinates').textContent = `${Math.abs(location.coordinates.latitude).toFixed(2)}\u00b0 S, ${location.coordinates.longitude.toFixed(2)}\u00b0 E (approx.)`;
   document.querySelector('#coordinatesFact').textContent = `Approx. ${Math.abs(location.coordinates.latitude).toFixed(2)}\u00b0 S, ${location.coordinates.longitude.toFixed(2)}\u00b0 E`;
 
@@ -149,7 +152,7 @@ function renderCatalog(location) {
     info.className = 'species-info';
     const label = document.createElement('span');
     label.className = 'species-type green';
-    label.textContent = item.status.replaceAll('-', ' ').toLocaleUpperCase();
+    label.textContent = `${item.status.replaceAll('-', ' ').toLocaleUpperCase()} · ${item.sourceDate ? `SOURCE ${formatReportDate(item.sourceDate)}` : `CHECKED ${formatReportDate(item.checkedAt.slice(0, 10))}`}`;
     const name = document.createElement('h3');
     name.textContent = item.name;
     info.append(label, name);
@@ -187,7 +190,7 @@ function renderLocationCards(query = '') {
     detail.textContent = [location.province, location.river].filter(Boolean).join(' · ');
     const coverage = document.createElement('span');
     coverage.className = 'location-card-coverage';
-    coverage.textContent = `${location.factCount} sourced ${location.factCount === 1 ? 'specification' : 'specifications'} · access details shown when verified`;
+    coverage.textContent = `${location.factCount} sourced ${location.factCount === 1 ? 'specification' : 'specifications'} · ${location.lastCheckedAt ? `checked ${formatReportDate(location.lastCheckedAt.slice(0, 10))}` : 'details not checked'}`;
     card.append(tag, name, detail, coverage);
     card.addEventListener('click', () => selectLocation(location.id));
     grid.append(card);
@@ -251,12 +254,33 @@ function renderHourlyForecast(hourly, currentTime) {
   }
 }
 
+function renderFishingWindows(daily) {
+  const container = document.querySelector('#fishingWindows');
+  container.replaceChildren();
+  for (let index = 0; index < daily.time.length; index += 1) {
+    const date = new Date(`${daily.time[index]}T12:00:00+02:00`);
+    const day = document.createElement('div');
+    day.className = 'fishing-window-day';
+    const label = document.createElement('strong');
+    label.textContent = new Intl.DateTimeFormat('en-ZA', {
+      weekday: 'short', day: 'numeric', month: 'short', timeZone: WEATHER_TIME_ZONE,
+    }).format(date);
+    const dawn = document.createElement('span');
+    dawn.textContent = `Dawn · ${formatHour(new Date(daily.sunrise[index]))}`;
+    const dusk = document.createElement('span');
+    dusk.textContent = `Dusk · ${formatHour(new Date(daily.sunset[index]))}`;
+    day.append(label, dawn, dusk);
+    container.append(day);
+  }
+}
+
 async function loadWeather(coordinates) {
   const params = new URLSearchParams({
     latitude: String(coordinates.latitude),
     longitude: String(coordinates.longitude),
     current: 'temperature_2m,apparent_temperature,relative_humidity_2m,precipitation,weather_code,cloud_cover,wind_speed_10m,wind_direction_10m',
     hourly: 'temperature_2m,precipitation_probability,wind_speed_10m,weather_code',
+    daily: 'sunrise,sunset',
     forecast_days: '2',
     timezone: WEATHER_TIME_ZONE,
   });
@@ -270,6 +294,7 @@ async function loadWeather(coordinates) {
   document.querySelector('#currentWindSummary').textContent = `Model time ${formatHour(new Date(data.current.time))}`;
   document.querySelector('#weatherUpdated').textContent = `Forecast model time ${formatHour(new Date(data.current.time))}`;
   renderHourlyForecast(data.hourly, data.current.time);
+  renderFishingWindows(data.daily);
 }
 
 async function initialise() {
@@ -320,6 +345,7 @@ async function selectLocation(locationId, updateUrl = true) {
       console.error('Could not load weather forecast:', error);
       document.querySelector('#currentWeather').textContent = 'Forecast unavailable';
       document.querySelector('#weatherUpdated').textContent = 'Weather data unavailable';
+      document.querySelector('#fishingWindows').textContent = 'Sunrise and sunset times unavailable.';
       document.querySelector('#hourlyForecast').textContent = 'Forecast unavailable. Try again later.';
     }
   } catch (error) {

@@ -9,6 +9,8 @@
 .forecast-loading{grid-column:1/-1;padding:13px;text-align:center;color:#8a9690;font-size:10px}
 .hour-wind{font-size:8px;color:#9aa49f}
 .condition-footer a{color:var(--green);font-weight:700;text-decoration:underline;text-underline-offset:2px}
+.fishing-windows{display:flex;align-items:center;justify-content:space-between;gap:16px;border-top:1px solid var(--line);padding:12px 0}.fishing-windows>div:first-child{min-width:145px}.fishing-windows>div:first-child strong{font-size:11px}.fishing-windows p{margin:4px 0 0;color:var(--muted);font-size:9px;line-height:1.4}.fishing-window-list{display:flex;gap:18px}.fishing-window-day{display:grid;gap:4px;color:#66746e;font-size:9px}.fishing-window-day strong{color:var(--ink);font-size:10px}.fishing-window-day span{white-space:nowrap}
+@media(max-width:740px){.fishing-windows{align-items:flex-start;flex-direction:column;gap:9px}.fishing-window-list{width:100%;justify-content:space-between;gap:8px}.fishing-window-day{font-size:8px}}
 .species-marker{height:32px;width:32px;flex:none;display:grid;place-items:center;border-radius:50%;background:#eef5ec;color:#739271;font-size:24px}
 .verified-species{min-height:66px}
 .verified-species .species-info h3{margin:4px 0 0}

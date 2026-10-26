@@ -10,7 +10,7 @@ Set `DATABASE_URL` in PowerShell to the pooled Neon connection string, then run:
 npm run dev
 ```
 
-Open <http://localhost:5173>. The location API returns data from Neon. Weather is fetched from Open-Meteo at runtime for approximate Hartbeespoort coordinates.
+Open <http://localhost:5173>. The location API returns data from Neon. Weather, hourly conditions, sunrise, and sunset are fetched from Open-Meteo at runtime for the selected location's approximate coordinates.
 
 To run the DWS import once from the terminal, run `npm run import:dws` after setting `DATABASE_URL` in that same terminal session.
 
@@ -20,6 +20,7 @@ To run the DWS import once from the terminal, run `npm run import:dws` after set
 - `db/migrations/0002_dws_ingest_runs.sql` adds an audit log for import attempts and points the DWS source record at its official weekly status page. Apply this migration to Neon before deploying the scheduled function.
 - `db/migrations/0003_location_forum.sql` creates community accounts, expiring sessions, location discussions, replies, reports, and persistent API rate limits. Apply it to Neon before enabling the forum.
 - `db/migrations/0004_location_directory.sql` adds initial sourced location records for Boskop, Vaalkop, and Roodekopjes dams. The published directory only includes entries with coordinates; access and fishing rules remain explicitly unverified unless sourced facts are added.
+- `db/migrations/0005_stage3_location_details.sql` expands the directory with five Western Cape dams, sourced species records, permit/access notes, and coordinate source dates. Apply after `0004_location_directory.sql` in Neon. The current directory is a sourced starter catalogue for North West and Western Cape, not an exhaustive national gazetteer. Access, facilities, and rules remain “not recorded” when a current authoritative source does not establish them; historical plans are not treated as current conditions.
 - `server/location-api.js` reads published location records. Vercel serves it through `api/locations/[id].js`; the local development server exposes the same endpoint.
 - `GET /api/locations` returns the published directory for search and location selection. Each profile and location discussion is loaded by its database location ID.
 - `public/` contains browser-facing files only. Server modules, SQL migrations and credentials are outside the static output.
