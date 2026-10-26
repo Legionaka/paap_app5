@@ -18,9 +18,11 @@ To run the DWS import once from the terminal, run `npm run import:dws` after set
 
 - `db/migrations/0001_location_catalog.sql` defines the Postgres/PostGIS location, source, fact, observation and species tables and seeds Hartbeespoort Dam.
 - `db/migrations/0002_dws_ingest_runs.sql` adds an audit log for import attempts and points the DWS source record at its official weekly status page. Apply this migration to Neon before deploying the scheduled function.
+- `db/migrations/0003_location_forum.sql` creates community accounts, expiring sessions, location discussions, replies, reports, and persistent API rate limits. Apply it to Neon before enabling the forum.
 - `server/location-api.js` reads published location records. Vercel serves it through `api/locations/[id].js`; the local development server exposes the same endpoint.
 - `public/` contains browser-facing files only. Server modules, SQL migrations and credentials are outside the static output.
 - `server/dws-importer.js` follows the official DWS weekly status page to its dated reservoir PDF, validates Hartbeespoort's capacity and storage row, and stores dated observations in Neon. Older reports and malformed values are rejected. This is weekly reporting, not a live sensor feed.
+- `server/community-api.js` provides account registration and sign-in, location discussion posts and replies, content reports, and moderator actions. Session cookies are HttpOnly, SameSite=Lax and Secure in production; passwords use Node's scrypt; user-generated text is rendered as text; write endpoints enforce same-origin JSON requests and database-backed rate limits.
 - `vercel.json` schedules the import once daily at 06:00 UTC. Vercel cron jobs run on production deployments; Hobby plan jobs can run at any point during their scheduled hour. Vercel does not retry failed cron invocations, so check the function logs and the `data_ingest_runs` table.
 
 ## Vercel environment variables
@@ -32,6 +34,16 @@ Add these in the Vercel project settings for Production:
 - `INGEST_DATABASE_URL`: optional separate Neon role for the importer. If unset, the importer falls back to `DATABASE_URL`; use a restricted writer role for production.
 
 The Neon credentials must remain server-side. Do not add them to frontend code or commit them to the repository. Vercel Cron invokes the import only after a production deployment. DWS report reuse terms should be confirmed before commercial redistribution.
+
+To grant moderator access after registration, use a trusted Neon SQL session and promote a specific account by its exact email:
+
+```sql
+UPDATE public.community_users
+SET role = 'moderator', updated_at = now()
+WHERE email = 'moderator@example.com';
+```
+
+The forum supports password accounts without an email delivery integration, so this release does not verify email ownership or provide password reset emails. Configure an email provider and verification/reset flows before relying on email identity for sensitive community actions.
 
 In Vercel, use the **Other** framework preset, leave the build command blank, and set the output directory to `public` (also recorded in `vercel.json`).
 
