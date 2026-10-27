@@ -2,3 +2,6 @@
 *.log
 .env*
 !.env.example
+public/explore/locations/
+public/sitemap.xml
+public/robots.txt

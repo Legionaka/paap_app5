@@ -10,7 +10,7 @@ Set `DATABASE_URL` in PowerShell to the pooled Neon connection string, then run:
 npm run dev
 ```
 
-Open <http://localhost:5173>. The location API returns data from Neon. Weather, hourly conditions, sunrise, and sunset are fetched from Open-Meteo at runtime for the selected location's approximate coordinates.
+Open <http://localhost:5173>. The `predev` step generates a shareable static page for each published location, plus `sitemap.xml` and `robots.txt`, using the published Neon directory. Weather, hourly conditions, sunrise, and sunset are fetched from Open-Meteo at runtime for the selected location's approximate coordinates.
 
 To run the DWS import once from the terminal, run `npm run import:dws` after setting `DATABASE_URL` in that same terminal session.
 
@@ -56,7 +56,17 @@ WHERE email = 'moderator@example.com';
 
 After applying migration `0007`, configure the email variables in Vercel and redeploy. Existing accounts remain unverified until their owners use the verification flow; community posting and account-synced saved waters require a verified address. Registration and verification resend require working email delivery. Password recovery always shows the same response to protect account privacy; check Vercel function logs if a reset email is not delivered.
 
-In Vercel, use the **Other** framework preset, leave the build command blank, and set the output directory to `public` (also recorded in `vercel.json`).
+In Vercel, use the **Other** framework preset, set the build command to `npm run build`, and set the output directory to `public` (also recorded in `vercel.json`). The build runs formatting checks and unit/project checks, then generates a static, shareable `/explore/locations/<id>/` page for every published location and a sitemap. Set `DATABASE_URL` and the canonical `APP_BASE_URL` for each environment that should build these pages. Vercel must have access to Neon during the build.
+
+## Design and quality checks
+
+- `npm run format` formats the maintained HTML, CSS, JavaScript, JSON and Markdown files. Vendored Leaflet files and generated pages are excluded.
+- `npm run check` checks formatting and runs the Node test suite.
+- `npm run build` runs those checks before generating location pages and search metadata.
+- Shared design tokens and typography are in `public/css/tokens.css`; page-specific layouts stay in `site.css` and `styles.css`.
+- Leaflet is vendored under `public/vendor/leaflet/` with its BSD license. Map tiles are requested only as a user views the map, and visible [OpenStreetMap attribution](https://www.openstreetmap.org/copyright) is included. Follow the [OSM tile usage policy](https://operations.osmfoundation.org/policies/tiles/); the public tile service has no availability guarantee, so move to a commercial or self-hosted tile provider if traffic grows.
+
+Location profile pages are generated from the published database at build time. Adding or changing a published location requires a new deployment to update the static page metadata and sitemap. The live directory and profile data still come from the location API.
 
 ## Data quality notes
 

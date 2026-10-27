@@ -1,6 +1,6 @@
 import { neon } from '@neondatabase/serverless';
 
-const toSourceType = value => value.replaceAll('_', '-');
+const toSourceType = (value) => value.replaceAll('_', '-');
 
 export async function getPublishedLocations() {
   const connectionString = process.env.DATABASE_URL;
@@ -13,6 +13,9 @@ export async function getPublishedLocations() {
   return sql`
     SELECT l.id, l.name, l.location_type AS type, l.province, l.country_code AS country,
            l.river_name AS river,
+           extensions.st_y(l.point::extensions.geometry) AS latitude,
+           extensions.st_x(l.point::extensions.geometry) AS longitude,
+           l.coordinate_precision AS "coordinatePrecision",
            (SELECT count(*)::int FROM public.location_facts f WHERE f.location_id = l.id) AS "factCount",
            (SELECT max(f.checked_at) FROM public.location_facts f WHERE f.location_id = l.id) AS "lastCheckedAt"
     FROM public.locations l
@@ -89,18 +92,28 @@ export async function getPublishedLocation(locationId) {
       sourceDate: row.coordinateSourceDate,
     },
     river: row.river,
-    facts: facts.map(item => ({ ...item, label: item.key.replaceAll('_', ' ') })),
-    observations: observations.map(item => ({
+    facts: facts.map((item) => ({ ...item, label: item.key.replaceAll('_', ' ') })),
+    observations: observations.map((item) => ({
       ...item,
       label: item.metric.replaceAll('_', ' '),
       cadence: item.sourceId === 'dws-weekly-dam-levels' ? 'weekly' : 'reported',
-      dataClass: item.sourceId === 'dws-weekly-dam-levels' ? 'weekly-official-report'
-        : item.capturedFromSourceId ? 'secondary-transcription'
-          : item.status === 'community-reported' ? 'community-report'
-            : item.status === 'estimated' ? 'estimate' : 'observation',
+      dataClass:
+        item.sourceId === 'dws-weekly-dam-levels'
+          ? 'weekly-official-report'
+          : item.capturedFromSourceId
+            ? 'secondary-transcription'
+            : item.status === 'community-reported'
+              ? 'community-report'
+              : item.status === 'estimated'
+                ? 'estimate'
+                : 'observation',
       latestAvailable: Boolean(item.metadata?.latest_available_marker),
     })),
     species,
-    sources: sources.map(source => ({ ...source, id: source.id, sourceType: toSourceType(source.sourceType) })),
+    sources: sources.map((source) => ({
+      ...source,
+      id: source.id,
+      sourceType: toSourceType(source.sourceType),
+    })),
   };
 }

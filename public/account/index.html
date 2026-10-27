@@ -1,1 +1,81 @@
-﻿<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#f5f6ef"><link rel="icon" href="/icons/icon.svg"><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet"><link rel="stylesheet" href="/css/site.css"><title>Your account Â· Stillwater</title></head><body class="auth-page" data-page="account"><main class="auth-shell"><a class="auth-brand" href="/">â‰ˆ stillwater.</a><section class="auth-card"><div class="eyebrow">YOUR STILLWATER</div><h1>Your account.</h1><p class="auth-intro" id="accountSummary">Loading account detailsâ€¦</p><div id="accountMessage" class="auth-message" role="status" aria-live="polite"></div><div class="account-grid"><section class="account-section" id="verificationSection" hidden><h2>Verify your email</h2><p>Verify your email to post, reply, report content, and sync saved locations.</p><button class="auth-submit" id="resendVerification" type="button">Resend verification email</button></section><section class="account-section"><h2>Profile</h2><form class="auth-form" id="profileForm"><label class="auth-field">Display name<input name="displayName" required minlength="2" maxlength="36"></label><button class="auth-submit" type="submit">Save profile</button></form></section><section class="account-section"><h2>Saved waters</h2><div class="saved-list" id="savedLocations"><p>Loading saved watersâ€¦</p></div><p>Save locations from the guide to see them here and keep them synced to your account.</p></section><section class="account-section"><h2>Change password</h2><form class="auth-form" id="passwordForm"><label class="auth-field">Current password<input name="currentPassword" type="password" autocomplete="current-password" required></label><label class="auth-field">New password<input name="newPassword" type="password" autocomplete="new-password" required minlength="12" maxlength="128"></label><button class="auth-submit" type="submit">Update password</button></form></section><section class="account-section"><button id="signOut" class="auth-submit" type="button">Sign out</button></section></div></section><p class="auth-footer"><a href="/explore/">Back to the fishing guide</a></p></main><script type="module" src="/js/account.js"></script></body></html>
+﻿<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+    <meta name="theme-color" content="#f5f6ef" />
+    <link rel="icon" href="/icons/icon.svg" />
+    <link rel="stylesheet" href="/css/tokens.css" />
+    <link rel="stylesheet" href="/css/site.css" />
+    <meta name="robots" content="noindex, nofollow" />
+    <title>Your account · Stillwater</title>
+  </head>
+  <body class="auth-page" data-page="account">
+    <main class="auth-shell">
+      <a class="auth-brand" href="/">≈ stillwater.</a>
+      <section class="auth-card">
+        <div class="eyebrow">YOUR STILLWATER</div>
+        <h1>Your account.</h1>
+        <p class="auth-intro" id="accountSummary">Loading account details…</p>
+        <div id="accountMessage" class="auth-message" role="status" aria-live="polite"></div>
+        <div class="account-grid">
+          <section class="account-section" id="verificationSection" hidden>
+            <h2>Verify your email</h2>
+            <p>Verify your email to post, reply, report content, and sync saved locations.</p>
+            <button class="auth-submit" id="resendVerification" type="button">
+              Resend verification email
+            </button>
+          </section>
+          <section class="account-section">
+            <h2>Profile</h2>
+            <form class="auth-form" id="profileForm">
+              <label class="auth-field">
+                Display name
+                <input name="displayName" required minlength="2" maxlength="36" />
+              </label>
+              <button class="auth-submit" type="submit">Save profile</button>
+            </form>
+          </section>
+          <section class="account-section">
+            <h2>Saved waters</h2>
+            <div class="saved-list" id="savedLocations"><p>Loading saved waters…</p></div>
+            <p>
+              Save locations from the guide to see them here and keep them synced to your account.
+            </p>
+          </section>
+          <section class="account-section">
+            <h2>Change password</h2>
+            <form class="auth-form" id="passwordForm">
+              <label class="auth-field">
+                Current password
+                <input
+                  name="currentPassword"
+                  type="password"
+                  autocomplete="current-password"
+                  required
+                />
+              </label>
+              <label class="auth-field">
+                New password
+                <input
+                  name="newPassword"
+                  type="password"
+                  autocomplete="new-password"
+                  required
+                  minlength="12"
+                  maxlength="128"
+                />
+              </label>
+              <button class="auth-submit" type="submit">Update password</button>
+            </form>
+          </section>
+          <section class="account-section">
+            <button id="signOut" class="auth-submit" type="button">Sign out</button>
+          </section>
+        </div>
+      </section>
+      <p class="auth-footer"><a href="/explore/">Back to the fishing guide</a></p>
+    </main>
+    <script type="module" src="/js/account.js"></script>
+  </body>
+</html>

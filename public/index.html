@@ -1,84 +1,317 @@
 <!doctype html>
 <html lang="en">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta name="theme-color" content="#f5f6ef">
-  <meta name="description" content="Find fishing waters across South Africa. Check location details, weather planning, sourced species records and local angler discussions with Stillwater.">
-  <link rel="icon" type="image/svg+xml" href="/icons/icon.svg">
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/css/site.css">
-  <title>Stillwater — Find your water</title>
-</head>
-<body class="landing-page">
-  <a class="skip-link" href="#main">Skip to content</a>
-  <header class="site-header">
-    <a class="wordmark" href="/" aria-label="Stillwater home"><span class="brand-mark" aria-hidden="true">≈</span><span>stillwater<span class="brand-dot">.</span></span></a>
-    <nav class="site-nav" aria-label="Main navigation">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#f5f6ef" />
+    <meta
+      name="description"
+      content="Find fishing waters across South Africa. Check location details, weather planning, sourced species records and local angler discussions with Stillwater."
+    />
+    <link id="pageCanonical" rel="canonical" href="/" />
+    <meta id="openGraphTitle" property="og:title" content="Stillwater — Find your water" />
+    <meta
+      id="openGraphDescription"
+      property="og:description"
+      content="Explore South African fishing waters, forecasts, sourced facts and local discussions."
+    />
+    <meta id="openGraphUrl" property="og:url" content="/" />
+    <meta
+      id="openGraphImage"
+      property="og:image"
+      content="/images/locations/hartbeespoort-dam.jpg"
+    />
+    <link rel="icon" type="image/svg+xml" href="/icons/icon.svg" />
+    <link rel="stylesheet" href="/css/tokens.css" />
+    <link rel="stylesheet" href="/css/site.css" />
+    <title>Stillwater — Find your water</title>
+  </head>
+  <body class="landing-page">
+    <a class="skip-link" href="#main">Skip to content</a>
+    <header class="site-header">
+      <a class="wordmark" href="/" aria-label="Stillwater home">
+        <span class="brand-mark" aria-hidden="true">≈</span>
+        <span>
+          stillwater
+          <span class="brand-dot">.</span>
+        </span>
+      </a>
+      <nav class="site-nav" aria-label="Main navigation">
+        <a href="/explore/">Explore waters</a>
+        <a href="/explore/#community">Community</a>
+        <a href="#how-it-works">How it works</a>
+      </nav>
+      <div class="header-actions">
+        <a class="header-signin" id="headerAccount" href="/sign-in/">Sign in</a>
+        <a class="button button-small" href="/register/">Join Stillwater</a>
+      </div>
+      <button
+        class="menu-toggle"
+        id="menuToggle"
+        type="button"
+        aria-label="Open navigation"
+        aria-expanded="false"
+        aria-controls="mobileMenu"
+      >
+        <span></span>
+        <span></span>
+      </button>
+    </header>
+    <nav class="mobile-menu" id="mobileMenu" aria-label="Mobile navigation" hidden>
       <a href="/explore/">Explore waters</a>
       <a href="/explore/#community">Community</a>
       <a href="#how-it-works">How it works</a>
+      <a href="/sign-in/">Sign in</a>
+      <a class="mobile-join" href="/register/">Create account</a>
     </nav>
-    <div class="header-actions">
-      <a class="header-signin" id="headerAccount" href="/sign-in/">Sign in</a>
-      <a class="button button-small" href="/register/">Join Stillwater</a>
-    </div>
-    <button class="menu-toggle" id="menuToggle" type="button" aria-label="Open navigation" aria-expanded="false" aria-controls="mobileMenu"><span></span><span></span></button>
-  </header>
-  <nav class="mobile-menu" id="mobileMenu" aria-label="Mobile navigation" hidden>
-    <a href="/explore/">Explore waters</a><a href="/explore/#community">Community</a><a href="#how-it-works">How it works</a>
-    <a href="/sign-in/">Sign in</a><a class="mobile-join" href="/register/">Create account</a>
-  </nav>
 
-  <main id="main">
-    <section class="hero" aria-labelledby="heroTitle">
-      <div class="hero-image" aria-hidden="true"></div>
-      <div class="hero-shade" aria-hidden="true"></div>
-      <div class="hero-content">
-        <p class="eyebrow"><span class="eyebrow-mark"></span> A BETTER DAY ON THE WATER STARTS HERE</p>
-        <h1 id="heroTitle">Find your water.<br><em>Make the day.</em></h1>
-        <p class="hero-copy">Explore South African fishing locations, plan around the forecast, and learn from the anglers who know each water.</p>
-        <form class="hero-search" id="heroSearch" action="/explore/" method="get" role="search">
-          <label class="visually-hidden" for="locationQuery">Search dams, rivers and fishing spots</label>
-          <span class="search-icon" aria-hidden="true">⌕</span>
-          <input id="locationQuery" name="q" type="search" placeholder="Search a dam, river or region" autocomplete="off">
-          <button type="submit" aria-label="Search locations">Explore <span aria-hidden="true">→</span></button>
-        </form>
-        <div class="hero-links"><a href="/explore/">Browse all locations <span aria-hidden="true">↗</span></a><span>Free to explore · Built for local waters</span></div>
+    <main id="main">
+      <section class="hero" aria-labelledby="heroTitle">
+        <img
+          class="hero-photo"
+          src="/images/locations/hartbeespoort-dam.webp"
+          alt="Hartbeespoort Dam wall with the Magaliesberg behind it"
+          fetchpriority="high"
+        />
+        <div class="hero-image" aria-hidden="true"></div>
+        <div class="hero-shade" aria-hidden="true"></div>
+        <div class="hero-content">
+          <p class="eyebrow">
+            <span class="eyebrow-mark"></span>
+            A BETTER DAY ON THE WATER STARTS HERE
+          </p>
+          <h1 id="heroTitle">
+            Find your water.
+            <br />
+            <em>Make the day.</em>
+          </h1>
+          <p class="hero-copy">
+            Explore South African fishing locations, plan around the forecast, and learn from the
+            anglers who know each water.
+          </p>
+          <form class="hero-search" id="heroSearch" action="/explore/" method="get" role="search">
+            <label class="visually-hidden" for="locationQuery">
+              Search dams, rivers and fishing spots
+            </label>
+            <span class="search-icon" aria-hidden="true">⌕</span>
+            <input
+              id="locationQuery"
+              name="q"
+              type="search"
+              placeholder="Search a dam, river or region"
+              autocomplete="off"
+            />
+            <button type="submit" aria-label="Search locations">
+              Explore
+              <span aria-hidden="true">→</span>
+            </button>
+          </form>
+          <div class="hero-links">
+            <a href="/explore/">
+              Browse all locations
+              <span aria-hidden="true">↗</span>
+            </a>
+            <span>Free to explore · Built for local waters</span>
+          </div>
+        </div>
+        <div class="hero-caption">
+          <span class="caption-line"></span>
+          <span>PLAN WELL. LEAVE IT BETTER.</span>
+        </div>
+        <a
+          class="hero-photo-credit"
+          href="https://commons.wikimedia.org/wiki/File:Hartbeespoort_Dam00.jpg"
+          target="_blank"
+          rel="noreferrer"
+        >
+          Photo: Rotational · Public domain
+        </a>
+      </section>
+
+      <section class="intro-strip" aria-label="About Stillwater">
+        <p>Good fishing starts before the first cast.</p>
+        <span>Know the place. Read the conditions. Share what you learn.</span>
+        <a href="/explore/">
+          Explore Stillwater
+          <b aria-hidden="true">↗</b>
+        </a>
+      </section>
+
+      <section class="waters-section content-section" aria-labelledby="watersTitle">
+        <div class="section-topline">
+          <span class="eyebrow dark-eyebrow">START WITH THE WATER</span>
+          <span class="section-index">01 / EXPLORE</span>
+        </div>
+        <div class="section-title-row">
+          <div>
+            <h2 id="watersTitle">
+              A spot worth
+              <br />
+              <em>getting to know.</em>
+            </h2>
+            <p>
+              Explore a growing directory of dams and rivers. Every location has its own story,
+              conditions and local conversation.
+            </p>
+          </div>
+          <a class="text-link" href="/explore/">
+            See all waters
+            <span aria-hidden="true">↗</span>
+          </a>
+        </div>
+        <div class="featured-waters" id="featuredWaters" aria-live="polite">
+          <p class="featured-loading">Finding the waters in our guide…</p>
+        </div>
+        <p class="data-note">
+          <span class="data-dot"></span>
+          <span>
+            Location facts link back to their sources. Forecasts, weekly reports and community posts
+            are labelled as different kinds of information.
+          </span>
+        </p>
+      </section>
+
+      <section class="planning-section" id="how-it-works" aria-labelledby="planningTitle">
+        <figure class="planning-art">
+          <img
+            src="/images/locations/theewaterskloof-dam.webp"
+            alt="Theewaterskloof Dam and the surrounding mountains"
+            loading="lazy"
+          />
+          <figcaption>
+            <a
+              href="https://commons.wikimedia.org/wiki/File:Theewaterskloofdam.jpg"
+              target="_blank"
+              rel="noreferrer"
+            >
+              Photo: F.J. Erasmus · Public domain
+            </a>
+          </figcaption>
+        </figure>
+        <div class="planning-copy">
+          <div class="section-topline">
+            <span class="eyebrow dark-eyebrow">PLAN WITH WHAT WE KNOW</span>
+            <span class="section-index">02 / PREPARE</span>
+          </div>
+          <h2 id="planningTitle">
+            A little context
+            <br />
+            goes a
+            <em>long way.</em>
+          </h2>
+          <p>
+            Check the forecast and upcoming low-light windows before you go. See reported dam
+            storage where it’s available, with its report date and freshness clearly shown.
+          </p>
+          <ul class="planning-list">
+            <li>
+              <span>01</span>
+              <div>
+                <strong>Forecast, not a promise</strong>
+                <small>Weather is modelled and tied to each location.</small>
+              </div>
+            </li>
+            <li>
+              <span>02</span>
+              <div>
+                <strong>Reports carry their dates</strong>
+                <small>Weekly storage reports are never presented as live sensor readings.</small>
+              </div>
+            </li>
+            <li>
+              <span>03</span>
+              <div>
+                <strong>Species records have sources</strong>
+                <small>A record of presence is not a guarantee of a catch.</small>
+              </div>
+            </li>
+          </ul>
+          <a class="button button-dark" href="/explore/">
+            Plan a visit
+            <span aria-hidden="true">→</span>
+          </a>
+        </div>
+      </section>
+
+      <section class="community-section content-section" aria-labelledby="communityTitle">
+        <div class="community-copy">
+          <div class="section-topline">
+            <span class="eyebrow dark-eyebrow">LOCAL KNOWLEDGE COUNTS</span>
+            <span class="section-index">03 / CONNECT</span>
+          </div>
+          <h2 id="communityTitle">
+            Every water has
+            <br />
+            <em>its people.</em>
+          </h2>
+          <p>
+            Ask about the launch, share a session note, or compare what’s working. Each location has
+            a dedicated place for its community.
+          </p>
+          <a class="text-link" href="/explore/#community">
+            Visit the community
+            <span aria-hidden="true">↗</span>
+          </a>
+        </div>
+        <figure class="community-card-art">
+          <img
+            src="/images/locations/angling-vaal-dam.webp"
+            alt="Fishing rods set up on the bank of Vaal Dam"
+            loading="lazy"
+          />
+          <figcaption>
+            <a
+              href="https://commons.wikimedia.org/wiki/File:Angling,_Vaal_Dam.jpg"
+              target="_blank"
+              rel="noreferrer"
+            >
+              Photo: Ossewa · CC BY-SA 4.0
+            </a>
+          </figcaption>
+        </figure>
+      </section>
+
+      <section class="final-cta">
+        <div class="cta-watermark" aria-hidden="true">≈</div>
+        <div class="eyebrow">THE NEXT CAST IS CLOSER THAN YOU THINK</div>
+        <h2>
+          Find a water.
+          <br />
+          <em>Get out there.</em>
+        </h2>
+        <div class="cta-actions">
+          <a class="button button-light" href="/explore/">
+            Explore waters
+            <span aria-hidden="true">→</span>
+          </a>
+          <a class="cta-secondary" href="/register/">
+            Join the community
+            <span aria-hidden="true">↗</span>
+          </a>
+        </div>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <a class="wordmark footer-wordmark" href="/" aria-label="Stillwater home">
+        <span class="brand-mark" aria-hidden="true">≈</span>
+        <span>
+          stillwater
+          <span class="brand-dot">.</span>
+        </span>
+      </a>
+      <span class="footer-note">A field guide for South African fishing waters.</span>
+      <div class="footer-links">
+        <a href="/explore/">Explore</a>
+        <a href="/explore/#community">Community</a>
+        <a href="/sign-in/">Sign in</a>
       </div>
-      <div class="hero-caption"><span class="caption-line"></span><span>PLAN WELL. LEAVE IT BETTER.</span></div>
-      <div class="hero-scroll" aria-hidden="true"><span>SCROLL TO EXPLORE</span><i></i></div>
-    </section>
-
-    <section class="intro-strip" aria-label="About Stillwater">
-      <p>Good fishing starts before the first cast.</p>
-      <span>Know the place. Read the conditions. Share what you learn.</span>
-      <a href="/explore/">Explore Stillwater <b aria-hidden="true">↗</b></a>
-    </section>
-
-    <section class="waters-section content-section" aria-labelledby="watersTitle">
-      <div class="section-topline"><span class="eyebrow dark-eyebrow">START WITH THE WATER</span><span class="section-index">01 / EXPLORE</span></div>
-      <div class="section-title-row"><div><h2 id="watersTitle">A spot worth<br><em>getting to know.</em></h2><p>Explore a growing directory of dams and rivers. Every location has its own story, conditions and local conversation.</p></div><a class="text-link" href="/explore/">See all waters <span aria-hidden="true">↗</span></a></div>
-      <div class="featured-waters" id="featuredWaters" aria-live="polite"><p class="featured-loading">Finding the waters in our guide…</p></div>
-      <p class="data-note"><span class="data-dot"></span><span>Location facts link back to their sources. Forecasts, weekly reports and community posts are labelled as different kinds of information.</span></p>
-    </section>
-
-    <section class="planning-section" id="how-it-works" aria-labelledby="planningTitle">
-      <div class="planning-art" aria-hidden="true"><div class="sun-disc"></div><div class="ridge ridge-back"></div><div class="ridge ridge-front"></div><div class="water-lines"><i></i><i></i><i></i><i></i><i></i></div><span class="art-coordinate">25°43′ S&nbsp;&nbsp; 27°51′ E</span></div>
-      <div class="planning-copy"><div class="section-topline"><span class="eyebrow dark-eyebrow">PLAN WITH WHAT WE KNOW</span><span class="section-index">02 / PREPARE</span></div><h2 id="planningTitle">A little context<br>goes a <em>long way.</em></h2><p>Check the forecast and upcoming low-light windows before you go. See reported dam storage where it’s available, with its report date and freshness clearly shown.</p><ul class="planning-list"><li><span>01</span><div><strong>Forecast, not a promise</strong><small>Weather is modelled and tied to each location.</small></div></li><li><span>02</span><div><strong>Reports carry their dates</strong><small>Weekly storage reports are never presented as live sensor readings.</small></div></li><li><span>03</span><div><strong>Species records have sources</strong><small>A record of presence is not a guarantee of a catch.</small></div></li></ul><a class="button button-dark" href="/explore/">Plan a visit <span aria-hidden="true">→</span></a></div>
-    </section>
-
-    <section class="community-section content-section" aria-labelledby="communityTitle">
-      <div class="community-copy"><div class="section-topline"><span class="eyebrow dark-eyebrow">LOCAL KNOWLEDGE COUNTS</span><span class="section-index">03 / CONNECT</span></div><h2 id="communityTitle">Every water has<br><em>its people.</em></h2><p>Ask about the launch, share a session note, or compare what’s working. Each location has a dedicated place for its community.</p><a class="text-link" href="/explore/#community">Visit the community <span aria-hidden="true">↗</span></a></div>
-      <div class="community-card-art" aria-hidden="true"><div class="chat-card chat-card-back"><span>LOCAL NOTE · HARTBEESPOORT</span><p>Wind picked up around midday. Early start was the call.</p><div class="chat-author"><i>JM</i><span>James M. · 2h ago</span></div></div><div class="chat-card chat-card-front"><span class="chat-label"><i></i> LOCATION DISCUSSION</span><p>What are you targeting this weekend?</p><div class="chat-reactions"><span>Carp</span><span>Barbel</span><span>Share a tip&nbsp; +</span></div></div><span class="community-stamp">GOOD<br>WATERS<br>TRAVEL.</span></div>
-    </section>
-
-    <section class="final-cta"><div class="cta-watermark" aria-hidden="true">≈</div><div class="eyebrow">THE NEXT CAST IS CLOSER THAN YOU THINK</div><h2>Find a water.<br><em>Get out there.</em></h2><div class="cta-actions"><a class="button button-light" href="/explore/">Explore waters <span aria-hidden="true">→</span></a><a class="cta-secondary" href="/register/">Join the community <span aria-hidden="true">↗</span></a></div></section>
-  </main>
-
-  <footer class="site-footer"><a class="wordmark footer-wordmark" href="/" aria-label="Stillwater home"><span class="brand-mark" aria-hidden="true">≈</span><span>stillwater<span class="brand-dot">.</span></span></a><span class="footer-note">A field guide for South African fishing waters.</span><div class="footer-links"><a href="/explore/">Explore</a><a href="/explore/#community">Community</a><a href="/sign-in/">Sign in</a></div><span class="footer-copy">© <span id="yearNow"></span> Stillwater</span></footer>
-  <script type="module" src="/js/landing.js"></script>
-</body>
+      <span class="footer-copy">
+        ©
+        <span id="yearNow"></span>
+        Stillwater
+      </span>
+    </footer>
+    <script type="module" src="/js/landing.js"></script>
+  </body>
 </html>

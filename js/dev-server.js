@@ -1,21 +1,110 @@
-﻿import { createServer } from 'node:http';
 import { createReadStream } from 'node:fs';
 import { stat } from 'node:fs/promises';
+import { createServer } from 'node:http';
 import { extname, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { getPublishedLocation, getPublishedLocations } from '../server/location-api.js';
-import communityHandler from '../server/community-api.js';
+import communityHandler from '../api/community.js';
+import healthHandler from '../api/health.js';
+import cronHandler from '../api/cron/import-dws.js';
+import locationsHandler from '../api/locations.js';
+import locationHandler from '../api/locations/[id].js';
 
-const root = resolve(fileURLToPath(new URL('../public', import.meta.url)));
+const publicRoot = resolve(fileURLToPath(new URL('../public', import.meta.url)));
 const port = Number(process.env.PORT) || 5173;
-const types = {
+const securityHeaders = {
+  'Content-Security-Policy':
+    "default-src 'self'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; object-src 'none'; script-src 'self'; style-src 'self'; style-src-attr 'unsafe-inline'; img-src 'self' data: https://tile.openstreetmap.org; connect-src 'self' https://api.open-meteo.com; font-src 'self'; upgrade-insecure-requests",
+  'Permissions-Policy': 'camera=(), microphone=(), geolocation=()',
+  'Referrer-Policy': 'strict-origin-when-cross-origin',
+  'X-Content-Type-Options': 'nosniff',
+  'X-Frame-Options': 'DENY',
+};
+const contentTypes = {
   '.css': 'text/css; charset=utf-8',
   '.html': 'text/html; charset=utf-8',
   '.ico': 'image/x-icon',
+  '.jpeg': 'image/jpeg',
+  '.jpg': 'image/jpeg',
   '.js': 'text/javascript; charset=utf-8',
   '.json': 'application/json; charset=utf-8',
+  '.png': 'image/png',
   '.svg': 'image/svg+xml',
+  '.txt': 'text/plain; charset=utf-8',
+  '.webp': 'image/webp',
+  '.woff2': 'font/woff2',
+  '.xml': 'application/xml; charset=utf-8',
 };
+
+function createLocalResponse(response, method) {
+  let statusCode = 200;
+  return {
+    setHeader(name, value) {
+      response.setHeader(name, value);
+    },
+    status(code) {
+      statusCode = code;
+      return this;
+    },
+    json(payload) {
+      const body = JSON.stringify(payload);
+      response.statusCode = statusCode;
+      if (!response.hasHeader('Content-Type')) {
+        response.setHeader('Content-Type', 'application/json; charset=utf-8');
+      }
+      response.setHeader('Content-Length', Buffer.byteLength(body));
+      response.end(method === 'HEAD' ? undefined : body);
+      return this;
+    },
+  };
+}
+
+async function parseRequestBody(request, response) {
+  const chunks = [];
+  let size = 0;
+  try {
+    for await (const chunk of request) {
+      size += chunk.length;
+      if (size > 15_000) throw new Error('Request body too large');
+      chunks.push(chunk);
+    }
+  } catch {
+    response.writeHead(413, { 'Content-Type': 'application/json; charset=utf-8' });
+    response.end('{"error":"Request body too large"}');
+    return null;
+  }
+  if (!size) return {};
+  try {
+    return JSON.parse(Buffer.concat(chunks).toString('utf8'));
+  } catch {
+    response.writeHead(400, { 'Content-Type': 'application/json; charset=utf-8' });
+    response.end('{"error":"Invalid JSON"}');
+    return null;
+  }
+}
+
+async function callApi(handler, request, response, query = {}) {
+  let body = {};
+  if (!['GET', 'HEAD'].includes(request.method)) {
+    body = await parseRequestBody(request, response);
+    if (body === null) return;
+  }
+  for (const [name, value] of Object.entries(securityHeaders)) response.setHeader(name, value);
+  await handler(
+    {
+      method: request.method,
+      headers: request.headers,
+      socket: request.socket,
+      body,
+      query,
+    },
+    createLocalResponse(response, request.method),
+  );
+}
+
+function notFound(response) {
+  response.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' });
+  response.end('Not found');
+}
 
 createServer(async (request, response) => {
   let pathname;
@@ -26,158 +115,58 @@ createServer(async (request, response) => {
     return;
   }
 
-  const apiMatch = pathname.match(/^\/api\/locations\/([a-z0-9-]+)$/);
   if (pathname.startsWith('/api/')) {
-    if (pathname === '/api/health' && ['GET', 'HEAD'].includes(request.method)) {
-      try {
-        const { neon } = await import('@neondatabase/serverless');
-        if (!process.env.DATABASE_URL) throw new Error('Database is not configured');
-        await neon(process.env.DATABASE_URL)`SELECT 1`;
-        const body = JSON.stringify({ status: 'ok', database: 'ok', timestamp: new Date().toISOString() });
-        response.writeHead(200, { 'Cache-Control': 'no-store', 'Content-Type': 'application/json; charset=utf-8' }).end(request.method === 'HEAD' ? undefined : body);
-      } catch {
-        const body = JSON.stringify({ status: 'unavailable', database: 'unavailable' });
-        response.writeHead(503, { 'Cache-Control': 'no-store', 'Content-Type': 'application/json; charset=utf-8' }).end(request.method === 'HEAD' ? undefined : body);
-      }
-      return;
-    }
-    if (pathname === '/api/locations' && ['GET', 'HEAD'].includes(request.method)) {
-      try {
-        const locations = await getPublishedLocations();
-        const body = JSON.stringify({ locations });
-        response.writeHead(200, {
-          'Cache-Control': 'public, max-age=60, stale-while-revalidate=300',
-          'Content-Length': Buffer.byteLength(body),
-          'Content-Type': 'application/json; charset=utf-8',
-          'X-Content-Type-Options': 'nosniff',
-        });
-        response.end(request.method === 'HEAD' ? undefined : body);
-      } catch (error) {
-        const statusCode = error.statusCode === 503 ? 503 : 500;
-        console.error('Location directory request failed:', error.message);
-        const body = JSON.stringify({ error: statusCode === 503 ? 'Database is not configured' : 'Location directory is temporarily unavailable' });
-        response.writeHead(statusCode, { 'Content-Type': 'application/json; charset=utf-8' }).end(body);
-      }
-      return;
-    }
-
+    if (pathname === '/api/health') return callApi(healthHandler, request, response);
+    if (pathname === '/api/cron/import-dws') return callApi(cronHandler, request, response);
+    if (pathname === '/api/locations') return callApi(locationsHandler, request, response);
+    const locationMatch = pathname.match(/^\/api\/locations\/([a-z0-9-]+)$/);
+    if (locationMatch) return callApi(locationHandler, request, response, { id: locationMatch[1] });
     const communityMatch = pathname.match(/^\/api\/community\/(.+)$/);
     if (communityMatch) {
-      if (!['GET', 'POST', 'PATCH', 'DELETE', 'HEAD'].includes(request.method)) {
-        response.writeHead(405, { Allow: 'GET, POST, PATCH, DELETE', 'Content-Type': 'application/json; charset=utf-8' }).end('{"error":"Method not allowed"}');
-        return;
-      }
-      const chunks = [];
-      let size = 0;
-      try {
-        for await (const chunk of request) {
-          size += chunk.length;
-          if (size > 15000) throw new Error('Request body too large');
-          chunks.push(chunk);
-        }
-      } catch {
-        response.writeHead(413, { 'Content-Type': 'application/json; charset=utf-8' }).end('{"error":"Request body too large"}');
-        return;
-      }
-      let body = {};
-      try {
-        if (size) body = JSON.parse(Buffer.concat(chunks).toString('utf8'));
-      } catch {
-        response.writeHead(400, { 'Content-Type': 'application/json; charset=utf-8' }).end('{"error":"Invalid JSON"}');
-        return;
-      }
-      const pathParts = communityMatch[1].split('/').filter(Boolean);
-      const localResponse = {
-        status(code) { this.statusCode = code; return this; },
-        setHeader(name, value) { response.setHeader(name, value); },
-        json(payload) {
-          const output = JSON.stringify(payload);
-          response.writeHead(this.statusCode ?? 200, { 'Content-Length': Buffer.byteLength(output) });
-          response.end(request.method === 'HEAD' ? undefined : output);
-          return response;
-        },
-      };
-      await communityHandler({
-        method: request.method,
-        headers: request.headers,
-        socket: request.socket,
-        body,
-        query: { path: pathParts },
-      }, localResponse);
-      return;
-    }
-
-    if (request.method !== 'GET' && request.method !== 'HEAD') {
-      response.writeHead(405, { Allow: 'GET, HEAD', 'Content-Type': 'application/json; charset=utf-8' }).end('{"error":"Method not allowed"}');
-      return;
-    }
-    if (!apiMatch) {
-      response.writeHead(404, { 'Content-Type': 'application/json; charset=utf-8' }).end('{"error":"Not found"}');
-      return;
-    }
-    if (request.method !== 'GET' && request.method !== 'HEAD') {
-      response.writeHead(405, { Allow: 'GET, HEAD', 'Content-Type': 'application/json; charset=utf-8' }).end('{"error":"Method not allowed"}');
-      return;
-    }
-
-    try {
-      const location = await getPublishedLocation(apiMatch[1]);
-      if (!location) {
-        response.writeHead(404, { 'Content-Type': 'application/json; charset=utf-8' }).end('{"error":"Location not found"}');
-        return;
-      }
-      const body = JSON.stringify({ location });
-      response.writeHead(200, {
-        'Cache-Control': 'public, max-age=60, stale-while-revalidate=300',
-        'Content-Length': Buffer.byteLength(body),
-        'Content-Type': 'application/json; charset=utf-8',
-        'X-Content-Type-Options': 'nosniff',
+      return callApi(communityHandler, request, response, {
+        path: communityMatch[1].split('/').filter(Boolean).join('/'),
       });
-      if (request.method === 'HEAD') response.end();
-      else response.end(body);
-    } catch (error) {
-      const statusCode = error.statusCode === 503 ? 503 : 500;
-      console.error('Location API request failed:', error.message);
-      const body = JSON.stringify({ error: statusCode === 503 ? 'Database is not configured' : 'Location data is temporarily unavailable' });
-      response.writeHead(statusCode, { 'Content-Type': 'application/json; charset=utf-8' });
-      if (request.method === 'HEAD') response.end();
-      else response.end(body);
     }
+    return notFound(response);
+  }
+
+  if (!['GET', 'HEAD'].includes(request.method)) {
+    response.writeHead(405, { Allow: 'GET, HEAD' });
+    response.end('Method not allowed');
     return;
   }
 
-  if (request.method !== 'GET' && request.method !== 'HEAD') {
-    response.writeHead(405, { Allow: 'GET, HEAD' }).end('Method not allowed');
-    return;
-  }
-
-  const normalizedPath = pathname === '/' ? '/index.html' : pathname.endsWith('/') ? `${pathname}index.html` : pathname;
+  const normalizedPath =
+    pathname === '/' ? '/index.html' : pathname.endsWith('/') ? `${pathname}index.html` : pathname;
   const relativePath = normalizedPath.replace(/^\/+/, '');
   const topLevel = relativePath.split(/[\\/]/)[0];
-  if (['server', 'db', '.git', 'node_modules'].includes(topLevel)
-    || /^(\.env|package(?:-lock)?\.json|README\.md)$/i.test(relativePath)) {
-    response.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' }).end('Not found');
-    return;
+  if (
+    ['server', 'db', '.git', 'node_modules', 'scripts', 'tests'].includes(topLevel) ||
+    /^\.(?:env|git)/i.test(relativePath) ||
+    /^(?:package(?:-lock)?\.json|README\.md|PHOTO_CREDITS\.md)$/i.test(relativePath)
+  ) {
+    return notFound(response);
   }
-  const filePath = resolve(root, relativePath);
-  if (filePath !== root && !filePath.startsWith(root + sep)) {
+
+  const filePath = resolve(publicRoot, relativePath);
+  if (filePath !== publicRoot && !filePath.startsWith(`${publicRoot}${sep}`)) {
     response.writeHead(403).end('Forbidden');
     return;
   }
 
   try {
     const info = await stat(filePath);
-    if (!info.isFile()) throw new Error('Not a file');
+    if (!info.isFile()) return notFound(response);
     response.writeHead(200, {
+      ...securityHeaders,
       'Content-Length': info.size,
-      'Content-Type': types[extname(filePath).toLowerCase()] ?? 'application/octet-stream',
-      'X-Content-Type-Options': 'nosniff',
+      'Content-Type': contentTypes[extname(filePath).toLowerCase()] ?? 'application/octet-stream',
     });
     if (request.method === 'HEAD') response.end();
     else createReadStream(filePath).pipe(response);
   } catch {
-    response.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' }).end('Not found');
+    notFound(response);
   }
 }).listen(port, '127.0.0.1', () => {
-  console.log(`Stillwater is running at http://localhost:${port}`);
+  console.info(`Stillwater is running at http://localhost:${port}`);
 });

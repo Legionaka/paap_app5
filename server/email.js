@@ -1,5 +1,9 @@
 function escapeHtml(value) {
-  return String(value).replace(/[&<>"']/g, character => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[character]);
+  return String(value).replace(
+    /[&<>"']/g,
+    (character) =>
+      ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[character],
+  );
 }
 
 export async function sendAccountEmail({ to, subject, heading, message, actionLabel, actionUrl }) {

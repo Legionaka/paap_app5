@@ -19,7 +19,8 @@ function cleanText(value, max) {
 }
 
 function getBody(request) {
-  if (!request.body || typeof request.body !== 'object' || Array.isArray(request.body)) fail(400, 'Invalid request body');
+  if (!request.body || typeof request.body !== 'object' || Array.isArray(request.body))
+    fail(400, 'Invalid request body');
   return request.body;
 }
 
@@ -30,12 +31,18 @@ function getPath(request) {
 }
 
 function parseCookies(header = '') {
-  const pairs = header.split(';').map(part => part.trim().split('='));
-  return Object.fromEntries(pairs.filter(([key, value]) => key && value).map(([key, ...value]) => [key, decodeURIComponent(value.join('='))]));
+  const pairs = header.split(';').map((part) => part.trim().split('='));
+  return Object.fromEntries(
+    pairs
+      .filter(([key, value]) => key && value)
+      .map(([key, ...value]) => [key, decodeURIComponent(value.join('='))]),
+  );
 }
 
 function requestIp(request) {
-  return String(request.headers['x-forwarded-for'] ?? request.socket?.remoteAddress ?? 'unknown').split(',')[0].trim();
+  return String(request.headers['x-forwarded-for'] ?? request.socket?.remoteAddress ?? 'unknown')
+    .split(',')[0]
+    .trim();
 }
 
 function hash(value) {
@@ -50,20 +57,33 @@ async function makePasswordHash(password) {
 
 async function passwordMatches(password, stored) {
   const [scheme, saltHex, hashHex] = String(stored).split('$');
-  if (scheme !== 'scrypt' || !/^[a-f0-9]{32}$/.test(saltHex ?? '') || !/^[a-f0-9]{128}$/.test(hashHex ?? '')) return false;
+  if (
+    scheme !== 'scrypt' ||
+    !/^[a-f0-9]{32}$/.test(saltHex ?? '') ||
+    !/^[a-f0-9]{128}$/.test(hashHex ?? '')
+  )
+    return false;
   const actual = Buffer.from(await scrypt(password, Buffer.from(saltHex, 'hex'), 64));
   const expected = Buffer.from(hashHex, 'hex');
   return timingSafeEqual(actual, expected);
 }
 
 function setSessionCookie(response, token, maxAge = SESSION_DAYS * 86400) {
-  const secure = process.env.NODE_ENV === 'production' || process.env.VERCEL === '1' ? '; Secure' : '';
-  response.setHeader('Set-Cookie', `${COOKIE}=${encodeURIComponent(token)}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${maxAge}${secure}`);
+  const secure =
+    process.env.NODE_ENV === 'production' || process.env.VERCEL === '1' ? '; Secure' : '';
+  response.setHeader(
+    'Set-Cookie',
+    `${COOKIE}=${encodeURIComponent(token)}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${maxAge}${secure}`,
+  );
 }
 
 function clearSessionCookie(response) {
-  const secure = process.env.NODE_ENV === 'production' || process.env.VERCEL === '1' ? '; Secure' : '';
-  response.setHeader('Set-Cookie', `${COOKIE}=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0${secure}`);
+  const secure =
+    process.env.NODE_ENV === 'production' || process.env.VERCEL === '1' ? '; Secure' : '';
+  response.setHeader(
+    'Set-Cookie',
+    `${COOKIE}=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0${secure}`,
+  );
 }
 
 function ensureSameOrigin(request) {
@@ -89,7 +109,8 @@ async function checkRateLimit(sql, key, max, windowSeconds) {
       updated_at = now()
     RETURNING request_count
   `;
-  if (Number(rows[0]?.request_count) > max) fail(429, 'Too many attempts. Please wait and try again.');
+  if (Number(rows[0]?.request_count) > max)
+    fail(429, 'Too many attempts. Please wait and try again.');
 }
 
 async function currentUser(sql, request) {
@@ -109,7 +130,15 @@ async function currentUser(sql, request) {
 }
 
 function publicUser(user) {
-  return user ? { id: user.id, email: user.email, displayName: user.displayName, role: user.role, emailVerified: Boolean(user.emailVerified) } : null;
+  return user
+    ? {
+        id: user.id,
+        email: user.email,
+        displayName: user.displayName,
+        role: user.role,
+        emailVerified: Boolean(user.emailVerified),
+      }
+    : null;
 }
 
 function assertMember(user) {
@@ -122,7 +151,9 @@ function assertMemberWithoutVerification(user) {
   if (user.status !== 'active') fail(403, 'This account cannot post.');
 }
 
-function authToken() { return randomBytes(32).toString('base64url'); }
+function authToken() {
+  return randomBytes(32).toString('base64url');
+}
 
 async function issueAuthToken(sql, userId, type, ttl) {
   const token = authToken();
@@ -168,11 +199,18 @@ export default async function communityHandler(request, response) {
       const email = cleanText(body.email, 254).toLowerCase();
       const displayName = cleanText(body.displayName, 36);
       const requestedReturn = cleanText(body.returnTo, 500);
-      const returnTo = requestedReturn.startsWith('/') && !requestedReturn.startsWith('//') && !requestedReturn.startsWith('/\\') ? requestedReturn : '/account/';
+      const returnTo =
+        requestedReturn.startsWith('/') &&
+        !requestedReturn.startsWith('//') &&
+        !requestedReturn.startsWith('/\\')
+          ? requestedReturn
+          : '/account/';
       const password = typeof body.password === 'string' ? body.password : '';
       if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) fail(400, 'Enter a valid email address.');
-      if (displayName.length < 2 || !/^[\p{L}\p{N} _.-]+$/u.test(displayName)) fail(400, 'Choose a display name with 2–36 letters or numbers.');
-      if (password.length < 12 || Buffer.byteLength(password) > 128) fail(400, 'Password must be at least 12 characters and no more than 128 bytes.');
+      if (displayName.length < 2 || !/^[\p{L}\p{N} _.-]+$/u.test(displayName))
+        fail(400, 'Choose a display name with 2–36 letters or numbers.');
+      if (password.length < 12 || Buffer.byteLength(password) > 128)
+        fail(400, 'Password must be at least 12 characters and no more than 128 bytes.');
       await checkRateLimit(sql, `register:${hash(requestIp(request))}`, 5, 3600);
       const passwordHash = await makePasswordHash(password);
       let created;
@@ -187,7 +225,14 @@ export default async function communityHandler(request, response) {
         throw error;
       }
       const token = await issueAuthToken(sql, created[0].id, 'verify_email', 86400);
-      await sendAccountEmail({ to: email, subject: 'Verify your Stillwater account', heading: 'Confirm your email', message: `Hi ${displayName}, confirm your email address to join location discussions.`, actionLabel: 'Verify email', actionUrl: `${appBaseUrl(request)}/verify-email/?token=${encodeURIComponent(token)}&returnTo=${encodeURIComponent(returnTo)}` });
+      await sendAccountEmail({
+        to: email,
+        subject: 'Verify your Stillwater account',
+        heading: 'Confirm your email',
+        message: `Hi ${displayName}, confirm your email address to join location discussions.`,
+        actionLabel: 'Verify email',
+        actionUrl: `${appBaseUrl(request)}/verify-email/?token=${encodeURIComponent(token)}&returnTo=${encodeURIComponent(returnTo)}`,
+      });
       return response.status(202).json({ verificationRequired: true });
     }
 
@@ -196,7 +241,8 @@ export default async function communityHandler(request, response) {
       const email = cleanText(body.email, 254).toLowerCase();
       const password = typeof body.password === 'string' ? body.password : '';
       await checkRateLimit(sql, `login:${hash(requestIp(request))}`, 12, 900);
-      const rows = await sql`SELECT id, email, display_name AS "displayName", role, status, (email_verified_at IS NOT NULL) AS "emailVerified", password_hash FROM public.community_users WHERE email = ${email} LIMIT 1`;
+      const rows =
+        await sql`SELECT id, email, display_name AS "displayName", role, status, (email_verified_at IS NOT NULL) AS "emailVerified", password_hash FROM public.community_users WHERE email = ${email} LIMIT 1`;
       const account = rows[0];
       const matches = account ? await passwordMatches(password, account.password_hash) : false;
       if (!matches || account.status !== 'active') fail(401, 'Email or password is incorrect.');
@@ -209,9 +255,15 @@ export default async function communityHandler(request, response) {
     if (parts[0] === 'auth' && parts[1] === 'verify' && method === 'POST') {
       const token = cleanText(getBody(request).token, 100);
       if (!token) fail(400, 'Verification link is invalid or expired.');
-      const rows = await sql`UPDATE public.community_auth_tokens SET consumed_at = now() WHERE token_hash = ${hash(token)} AND token_type = 'verify_email' AND consumed_at IS NULL AND expires_at > now() RETURNING user_id`;
-      if (!rows[0]) fail(400, 'Verification link is invalid or expired. Request a new one from your account page.');
-      const accounts = await sql`UPDATE public.community_users SET email_verified_at = COALESCE(email_verified_at, now()), updated_at = now() WHERE id = ${rows[0].user_id} AND status = 'active' RETURNING id, email, display_name AS "displayName", role, status, true AS "emailVerified"`;
+      const rows =
+        await sql`UPDATE public.community_auth_tokens SET consumed_at = now() WHERE token_hash = ${hash(token)} AND token_type = 'verify_email' AND consumed_at IS NULL AND expires_at > now() RETURNING user_id`;
+      if (!rows[0])
+        fail(
+          400,
+          'Verification link is invalid or expired. Request a new one from your account page.',
+        );
+      const accounts =
+        await sql`UPDATE public.community_users SET email_verified_at = COALESCE(email_verified_at, now()), updated_at = now() WHERE id = ${rows[0].user_id} AND status = 'active' RETURNING id, email, display_name AS "displayName", role, status, true AS "emailVerified"`;
       if (!accounts[0]) fail(400, 'This account is unavailable.');
       const session = authToken();
       await sql`INSERT INTO public.community_sessions (user_id, token_hash, expires_at) VALUES (${accounts[0].id}, ${hash(session)}, now() + interval '30 days')`;
@@ -224,7 +276,14 @@ export default async function communityHandler(request, response) {
       if (user.emailVerified) return response.status(200).json({ ok: true });
       await checkRateLimit(sql, `verify:${user.id}`, 5, 3600);
       const token = await issueAuthToken(sql, user.id, 'verify_email', 86400);
-      await sendAccountEmail({ to: user.email, subject: 'Verify your Stillwater account', heading: 'Confirm your email', message: `Hi ${user.displayName}, confirm your email address to join location discussions.`, actionLabel: 'Verify email', actionUrl: `${appBaseUrl(request)}/verify-email/?token=${encodeURIComponent(token)}` });
+      await sendAccountEmail({
+        to: user.email,
+        subject: 'Verify your Stillwater account',
+        heading: 'Confirm your email',
+        message: `Hi ${user.displayName}, confirm your email address to join location discussions.`,
+        actionLabel: 'Verify email',
+        actionUrl: `${appBaseUrl(request)}/verify-email/?token=${encodeURIComponent(token)}`,
+      });
       return response.status(200).json({ ok: true });
     }
 
@@ -232,24 +291,37 @@ export default async function communityHandler(request, response) {
       const email = cleanText(getBody(request).email, 254).toLowerCase();
       if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) fail(400, 'Enter a valid email address.');
       await checkRateLimit(sql, `forgot:${hash(requestIp(request))}:${hash(email)}`, 4, 3600);
-      const accounts = await sql`SELECT id FROM public.community_users WHERE email = ${email} AND status = 'active' LIMIT 1`;
+      const accounts =
+        await sql`SELECT id FROM public.community_users WHERE email = ${email} AND status = 'active' LIMIT 1`;
       if (accounts[0]) {
         try {
           const token = await issueAuthToken(sql, accounts[0].id, 'password_reset', 3600);
-          await sendAccountEmail({ to: email, subject: 'Reset your Stillwater password', heading: 'Choose a new password', message: 'Use the link below to set a new password. The link expires in one hour.', actionLabel: 'Reset password', actionUrl: `${appBaseUrl(request)}/reset-password/?token=${encodeURIComponent(token)}` });
+          await sendAccountEmail({
+            to: email,
+            subject: 'Reset your Stillwater password',
+            heading: 'Choose a new password',
+            message: 'Use the link below to set a new password. The link expires in one hour.',
+            actionLabel: 'Reset password',
+            actionUrl: `${appBaseUrl(request)}/reset-password/?token=${encodeURIComponent(token)}`,
+          });
         } catch (error) {
           console.error('Password recovery email delivery failed:', error.message);
         }
       }
-      return response.status(200).json({ ok: true, message: 'If an account matches that email, we sent a password reset link.' });
+      return response.status(200).json({
+        ok: true,
+        message: 'If an account matches that email, we sent a password reset link.',
+      });
     }
 
     if (parts[0] === 'auth' && parts[1] === 'reset-password' && method === 'POST') {
       const body = getBody(request);
       const token = cleanText(body.token, 100);
       const password = typeof body.password === 'string' ? body.password : '';
-      if (password.length < 12 || Buffer.byteLength(password) > 128) fail(400, 'Password must be at least 12 characters and no more than 128 bytes.');
-      const rows = await sql`UPDATE public.community_auth_tokens SET consumed_at = now() WHERE token_hash = ${hash(token)} AND token_type = 'password_reset' AND consumed_at IS NULL AND expires_at > now() RETURNING user_id`;
+      if (password.length < 12 || Buffer.byteLength(password) > 128)
+        fail(400, 'Password must be at least 12 characters and no more than 128 bytes.');
+      const rows =
+        await sql`UPDATE public.community_auth_tokens SET consumed_at = now() WHERE token_hash = ${hash(token)} AND token_type = 'password_reset' AND consumed_at IS NULL AND expires_at > now() RETURNING user_id`;
       if (!rows[0]) fail(400, 'Password reset link is invalid or expired.');
       const passwordHash = await makePasswordHash(password);
       await sql`UPDATE public.community_users SET password_hash = ${passwordHash}, updated_at = now() WHERE id = ${rows[0].user_id} AND status = 'active'`;
@@ -261,8 +333,10 @@ export default async function communityHandler(request, response) {
     if (parts[0] === 'auth' && parts[1] === 'profile' && method === 'PATCH') {
       assertMemberWithoutVerification(user);
       const displayName = cleanText(getBody(request).displayName, 36);
-      if (displayName.length < 2 || !/^[\p{L}\p{N} _.-]+$/u.test(displayName)) fail(400, 'Choose a display name with 2–36 letters or numbers.');
-      const rows = await sql`UPDATE public.community_users SET display_name = ${displayName}, updated_at = now() WHERE id = ${user.id} RETURNING id, email, display_name AS "displayName", role, status, true AS "emailVerified"`;
+      if (displayName.length < 2 || !/^[\p{L}\p{N} _.-]+$/u.test(displayName))
+        fail(400, 'Choose a display name with 2–36 letters or numbers.');
+      const rows =
+        await sql`UPDATE public.community_users SET display_name = ${displayName}, updated_at = now() WHERE id = ${user.id} RETURNING id, email, display_name AS "displayName", role, status, true AS "emailVerified"`;
       return response.status(200).json({ user: publicUser(rows[0]) });
     }
 
@@ -271,9 +345,12 @@ export default async function communityHandler(request, response) {
       const body = getBody(request);
       const currentPassword = typeof body.currentPassword === 'string' ? body.currentPassword : '';
       const newPassword = typeof body.newPassword === 'string' ? body.newPassword : '';
-      const rows = await sql`SELECT password_hash FROM public.community_users WHERE id = ${user.id}`;
-      if (!rows[0] || !await passwordMatches(currentPassword, rows[0].password_hash)) fail(400, 'Current password is incorrect.');
-      if (newPassword.length < 12 || Buffer.byteLength(newPassword) > 128) fail(400, 'New password must be at least 12 characters and no more than 128 bytes.');
+      const rows =
+        await sql`SELECT password_hash FROM public.community_users WHERE id = ${user.id}`;
+      if (!rows[0] || !(await passwordMatches(currentPassword, rows[0].password_hash)))
+        fail(400, 'Current password is incorrect.');
+      if (newPassword.length < 12 || Buffer.byteLength(newPassword) > 128)
+        fail(400, 'New password must be at least 12 characters and no more than 128 bytes.');
       const passwordHash = await makePasswordHash(newPassword);
       await sql`UPDATE public.community_users SET password_hash = ${passwordHash}, updated_at = now() WHERE id = ${user.id}`;
       await sql`DELETE FROM public.community_sessions WHERE user_id = ${user.id}`;
@@ -283,19 +360,26 @@ export default async function communityHandler(request, response) {
 
     if (parts[0] === 'auth' && parts[1] === 'saved-locations' && method === 'GET') {
       assertMember(user);
-      const locations = await sql`SELECT l.id, l.name, l.location_type AS "type", l.province FROM public.community_saved_locations s JOIN public.locations l ON l.id = s.location_id WHERE s.user_id = ${user.id} AND l.is_published = true ORDER BY s.created_at DESC`;
+      const locations =
+        await sql`SELECT l.id, l.name, l.location_type AS "type", l.province FROM public.community_saved_locations s JOIN public.locations l ON l.id = s.location_id WHERE s.user_id = ${user.id} AND l.is_published = true ORDER BY s.created_at DESC`;
       return response.status(200).json({ locations });
     }
 
-    if (parts[0] === 'auth' && parts[1] === 'saved-locations' && ['POST', 'DELETE'].includes(method)) {
+    if (
+      parts[0] === 'auth' &&
+      parts[1] === 'saved-locations' &&
+      ['POST', 'DELETE'].includes(method)
+    ) {
       assertMember(user);
       const locationId = cleanText(getBody(request).locationId, 80);
       if (!/^[a-z0-9-]{1,80}$/.test(locationId)) fail(400, 'Choose a valid location.');
       if (method === 'POST') {
-        const location = await sql`SELECT id FROM public.locations WHERE id = ${locationId} AND is_published = true`;
+        const location =
+          await sql`SELECT id FROM public.locations WHERE id = ${locationId} AND is_published = true`;
         if (!location[0]) fail(404, 'Location not found.');
         await sql`INSERT INTO public.community_saved_locations (user_id, location_id) VALUES (${user.id}, ${locationId}) ON CONFLICT DO NOTHING`;
-      } else await sql`DELETE FROM public.community_saved_locations WHERE user_id = ${user.id} AND location_id = ${locationId}`;
+      } else
+        await sql`DELETE FROM public.community_saved_locations WHERE user_id = ${user.id} AND location_id = ${locationId}`;
       return response.status(200).json({ ok: true });
     }
 
@@ -333,11 +417,18 @@ export default async function communityHandler(request, response) {
       const targetId = Number(body.targetId);
       const reason = body.reason;
       const details = cleanText(body.details, 500) || null;
-      if (!['post', 'reply'].includes(targetType) || !Number.isSafeInteger(targetId) || targetId < 1) fail(400, 'Invalid report target.');
-      if (!['spam', 'harassment', 'unsafe_advice', 'misinformation', 'other'].includes(reason)) fail(400, 'Choose a report reason.');
-      const target = targetType === 'post'
-        ? await sql`SELECT id FROM public.community_posts WHERE id = ${targetId}`
-        : await sql`SELECT id FROM public.community_replies WHERE id = ${targetId}`;
+      if (
+        !['post', 'reply'].includes(targetType) ||
+        !Number.isSafeInteger(targetId) ||
+        targetId < 1
+      )
+        fail(400, 'Invalid report target.');
+      if (!['spam', 'harassment', 'unsafe_advice', 'misinformation', 'other'].includes(reason))
+        fail(400, 'Choose a report reason.');
+      const target =
+        targetType === 'post'
+          ? await sql`SELECT id FROM public.community_posts WHERE id = ${targetId}`
+          : await sql`SELECT id FROM public.community_replies WHERE id = ${targetId}`;
       if (!target[0]) fail(404, 'Content not found.');
       try {
         await sql`INSERT INTO public.community_reports (reporter_id, target_type, target_id, reason, details) VALUES (${user.id}, ${targetType}, ${targetId}, ${reason}, ${details})`;
@@ -353,18 +444,27 @@ export default async function communityHandler(request, response) {
       const body = getBody(request);
       const reportId = Number(body.reportId);
       const action = body.action;
-      if (!Number.isSafeInteger(reportId) || reportId < 1 || !['hide', 'restore', 'lock', 'unlock', 'dismiss'].includes(action)) fail(400, 'Invalid moderation action.');
-      const reportRows = await sql`SELECT target_type, target_id FROM public.community_reports WHERE id = ${reportId} AND status = 'open'`;
+      if (
+        !Number.isSafeInteger(reportId) ||
+        reportId < 1 ||
+        !['hide', 'restore', 'lock', 'unlock', 'dismiss'].includes(action)
+      )
+        fail(400, 'Invalid moderation action.');
+      const reportRows =
+        await sql`SELECT target_type, target_id FROM public.community_reports WHERE id = ${reportId} AND status = 'open'`;
       if (!reportRows[0] && action !== 'dismiss') fail(404, 'Open report not found.');
       const report = reportRows[0];
       if (action === 'dismiss') {
-        const changed = await sql`UPDATE public.community_reports SET status = 'dismissed', reviewed_by = ${user.id}, reviewed_at = now() WHERE id = ${reportId} AND status = 'open' RETURNING id`;
+        const changed =
+          await sql`UPDATE public.community_reports SET status = 'dismissed', reviewed_by = ${user.id}, reviewed_at = now() WHERE id = ${reportId} AND status = 'open' RETURNING id`;
         if (!changed[0]) fail(404, 'Open report not found.');
       } else {
         if (report.target_type === 'post') {
           const status = action === 'hide' ? 'hidden' : action === 'restore' ? 'published' : null;
-          if (status) await sql`UPDATE public.community_posts SET status = ${status}, updated_at = now() WHERE id = ${report.target_id}`;
-          if (action === 'lock' || action === 'unlock') await sql`UPDATE public.community_posts SET is_locked = ${action === 'lock'}, updated_at = now() WHERE id = ${report.target_id}`;
+          if (status)
+            await sql`UPDATE public.community_posts SET status = ${status}, updated_at = now() WHERE id = ${report.target_id}`;
+          if (action === 'lock' || action === 'unlock')
+            await sql`UPDATE public.community_posts SET is_locked = ${action === 'lock'}, updated_at = now() WHERE id = ${report.target_id}`;
         } else {
           if (action === 'hide' || action === 'restore') {
             const status = action === 'hide' ? 'hidden' : 'published';
@@ -379,7 +479,8 @@ export default async function communityHandler(request, response) {
     if (parts.length === 1 && method === 'GET') {
       const locationId = parts[0];
       if (!/^[a-z0-9-]{1,80}$/.test(locationId)) fail(400, 'Invalid location.');
-      const location = await sql`SELECT id FROM public.locations WHERE id = ${locationId} AND is_published = true LIMIT 1`;
+      const location =
+        await sql`SELECT id FROM public.locations WHERE id = ${locationId} AND is_published = true LIMIT 1`;
       if (!location[0]) fail(404, 'Location not found.');
       const posts = await sql`
         SELECT p.id, p.title, p.body, p.is_locked AS "isLocked", p.created_at AS "createdAt",
@@ -392,13 +493,15 @@ export default async function communityHandler(request, response) {
         ORDER BY p.created_at DESC
         LIMIT 50
       `;
-      const postIds = posts.map(post => post.id);
-      const replies = postIds.length ? await sql`
+      const postIds = posts.map((post) => post.id);
+      const replies = postIds.length
+        ? await sql`
         SELECT r.id, r.post_id AS "postId", r.body, r.created_at AS "createdAt", u.display_name AS "displayName"
         FROM public.community_replies r JOIN public.community_users u ON u.id = r.user_id
         WHERE r.post_id = ANY(${postIds}) AND r.status = 'published'
         ORDER BY r.created_at ASC
-      ` : [];
+      `
+        : [];
       const repliesByPost = new Map();
       for (const reply of replies) {
         const list = repliesByPost.get(reply.postId) ?? [];
@@ -407,7 +510,7 @@ export default async function communityHandler(request, response) {
       }
       return response.status(200).json({
         user: publicUser(user),
-        posts: posts.map(post => ({ ...post, replies: repliesByPost.get(post.id) ?? [] })),
+        posts: posts.map((post) => ({ ...post, replies: repliesByPost.get(post.id) ?? [] })),
       });
     }
 
@@ -418,10 +521,13 @@ export default async function communityHandler(request, response) {
       const body = getBody(request);
       const title = cleanText(body.title, 120);
       const content = cleanText(body.body, 5000);
-      if (title.length < 4 || content.length < 10) fail(400, 'Posts need a title (4+ characters) and details (10+ characters).');
-      const location = await sql`SELECT id FROM public.locations WHERE id = ${locationId} AND is_published = true LIMIT 1`;
+      if (title.length < 4 || content.length < 10)
+        fail(400, 'Posts need a title (4+ characters) and details (10+ characters).');
+      const location =
+        await sql`SELECT id FROM public.locations WHERE id = ${locationId} AND is_published = true LIMIT 1`;
       if (!location[0]) fail(404, 'Location not found.');
-      const created = await sql`INSERT INTO public.community_posts (location_id, user_id, title, body) VALUES (${locationId}, ${user.id}, ${title}, ${content}) RETURNING id`;
+      const created =
+        await sql`INSERT INTO public.community_posts (location_id, user_id, title, body) VALUES (${locationId}, ${user.id}, ${title}, ${content}) RETURNING id`;
       return response.status(201).json({ id: created[0].id });
     }
 
@@ -432,9 +538,11 @@ export default async function communityHandler(request, response) {
       await checkRateLimit(sql, `reply:${user.id}`, 40, 3600);
       const content = cleanText(getBody(request).body, 3000);
       if (content.length < 2) fail(400, 'Reply must contain at least 2 characters.');
-      const post = await sql`SELECT p.id FROM public.community_posts p JOIN public.locations l ON l.id = p.location_id WHERE p.id = ${postId} AND p.status = 'published' AND p.is_locked = false AND l.is_published = true`;
+      const post =
+        await sql`SELECT p.id FROM public.community_posts p JOIN public.locations l ON l.id = p.location_id WHERE p.id = ${postId} AND p.status = 'published' AND p.is_locked = false AND l.is_published = true`;
       if (!post[0]) fail(404, 'Discussion is unavailable or locked.');
-      const created = await sql`INSERT INTO public.community_replies (post_id, user_id, body) VALUES (${postId}, ${user.id}, ${content}) RETURNING id`;
+      const created =
+        await sql`INSERT INTO public.community_replies (post_id, user_id, body) VALUES (${postId}, ${user.id}, ${content}) RETURNING id`;
       return response.status(201).json({ id: created[0].id });
     }
 
@@ -443,6 +551,8 @@ export default async function communityHandler(request, response) {
   } catch (error) {
     const status = error.status ?? (error.statusCode === 503 ? 503 : 500);
     if (status >= 500) console.error('Community API request failed:', error.message);
-    return response.status(status).json({ error: status >= 500 ? 'Community service is temporarily unavailable.' : error.message });
+    return response.status(status).json({
+      error: status >= 500 ? 'Community service is temporarily unavailable.' : error.message,
+    });
   }
 }

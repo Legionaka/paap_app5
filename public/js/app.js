@@ -1,14 +1,25 @@
-const WEATHER_TIME_ZONE = 'Africa/Johannesburg';
+import { locationPhotos } from './location-photos.js';
+import { loadWeather, WEATHER_TIME_ZONE } from './weather.js';
+import { createLocationMap } from './location-map.js';
+import { createCommunity } from './community.js';
+
 const catalogSources = new Map();
 let locationIndex = [];
 let activeLocationId = null;
 let activeLocation = null;
 let savedLocationIds = new Set();
 try {
-  savedLocationIds = new Set(JSON.parse(localStorage.getItem('stillwater-saved-locations') ?? '[]'));
-} catch { /* Keep saving available for this session when storage is blocked. */ }
+  savedLocationIds = new Set(
+    JSON.parse(localStorage.getItem('stillwater-saved-locations') ?? '[]'),
+  );
+} catch {
+  /* Keep saving available for this session when storage is blocked. */
+}
 const search = document.querySelector('#locationSearch');
+const provinceFilter = document.querySelector('#provinceFilter');
 const toast = document.querySelector('#toast');
+const locationMap = createLocationMap((locationId) => selectLocation(locationId));
+const community = createCommunity(() => activeLocationId);
 let toastTimer;
 
 function showToast(message) {
@@ -18,15 +29,44 @@ function showToast(message) {
   toastTimer = setTimeout(() => toast.classList.remove('visible'), 2600);
 }
 
+async function syncSavedLocations(locationId) {
+  try {
+    const saved = await community.request('auth/saved-locations');
+    const remoteIds = new Set(saved.locations.map((location) => location.id));
+    for (const id of savedLocationIds) {
+      if (!remoteIds.has(id)) {
+        await community
+          .request('auth/saved-locations', {
+            method: 'POST',
+            body: JSON.stringify({ locationId: id }),
+          })
+          .catch(() => {});
+      }
+    }
+    for (const id of remoteIds) savedLocationIds.add(id);
+    localStorage.setItem('stillwater-saved-locations', JSON.stringify([...savedLocationIds]));
+    document
+      .querySelector('.save-button')
+      .classList.toggle('saved', savedLocationIds.has(locationId));
+  } catch {
+    // Keep local saved locations available when account sync is temporarily unavailable.
+  }
+}
+
 function formatReportDate(date) {
   return new Intl.DateTimeFormat('en-ZA', {
-    day: 'numeric', month: 'short', year: 'numeric', timeZone: WEATHER_TIME_ZONE,
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+    timeZone: WEATHER_TIME_ZONE,
   }).format(new Date(`${date}T12:00:00+02:00`));
 }
 
 function renderCitedFact(element, fact, fallback) {
   const value = fact
-    ? (typeof fact.value === 'string' ? fact.value : JSON.stringify(fact.value))
+    ? typeof fact.value === 'string'
+      ? fact.value
+      : JSON.stringify(fact.value)
     : fallback;
   element.replaceChildren(document.createTextNode(value));
   if (!fact) return;
@@ -51,29 +91,70 @@ function renderCatalog(location) {
   for (const source of location.sources) catalogSources.set(source.id, source);
   const speciesSource = location.species[0]?.sourceId;
   document.querySelector('#speciesSourceLink').href = catalogSources.get(speciesSource)?.url ?? '#';
-  document.querySelector('#weatherSourceLink').href = catalogSources.get('open-meteo-weather')?.url ?? '#';
+  document.querySelector('#weatherSourceLink').href =
+    catalogSources.get('open-meteo-weather')?.url ?? '#';
 
   document.querySelector('#featureTitle').textContent = location.name;
+  const description = `${location.name} fishing guide: location facts, sourced species records, weather forecasts and local angler discussions in ${location.province}, South Africa.`;
+  document.querySelector('#pageTitle').textContent = `${location.name} fishing guide · Stillwater`;
+  document.querySelector('#pageDescription').content = description;
+  document.querySelector('#pageCanonical').href =
+    `${window.location.origin}/explore/locations/${encodeURIComponent(location.id)}/`;
+  document.querySelector('#openGraphTitle').content = `${location.name} fishing guide · Stillwater`;
+  document.querySelector('#openGraphDescription').content = description;
+  document.querySelector('#openGraphUrl').content = document.querySelector('#pageCanonical').href;
+  const photo = locationPhotos[location.id];
+  document.querySelector('#openGraphImage').content = photo
+    ? `${window.location.origin}${photo.src}`
+    : '';
+  const photoElement = document.querySelector('#locationPhoto');
+  const photoCredit = document.querySelector('#locationPhotoCredit');
+  photoElement.hidden = !photo;
+  photoCredit.hidden = !photo;
+  if (photo) {
+    photoElement.src = photo.src;
+    photoElement.alt = photo.alt;
+    photoCredit.href = photo.sourceUrl;
+    photoCredit.textContent = `Photo: ${photo.credit} · ${photo.license}`;
+    photoCredit.title = `Image source and license: ${photo.license}`;
+  } else {
+    photoElement.removeAttribute('src');
+    photoElement.alt = '';
+    photoCredit.removeAttribute('href');
+    photoCredit.textContent = '';
+  }
   document.title = `${location.name} — Stillwater`;
-  document.querySelector('.feature-summary p').textContent = `${location.name} is a ${location.type} in ${location.province}, South Africa${location.river ? ` on the ${location.river}` : ''}. Access conditions and fishing rules are shown only when verified for this location.`;
+  document.querySelector('.feature-summary p').textContent =
+    `${location.name} is a ${location.type} in ${location.province}, South Africa${location.river ? ` on the ${location.river}` : ''}. Access conditions and fishing rules are shown only when verified for this location.`;
   const waterType = document.querySelector('.feature-meta > span');
   const typeLabel = location.type.replaceAll('_', ' ');
-  waterType.replaceChildren(waterType.querySelector('svg'), document.createTextNode(` Freshwater ${typeLabel}`));
+  waterType.replaceChildren(
+    waterType.querySelector('svg'),
+    document.createTextNode(` Freshwater ${typeLabel}`),
+  );
   const locationLine = document.querySelector('.image-caption .image-location');
   const pinIcon = locationLine.querySelector('svg');
-  document.querySelector('#locationPlaceLine').textContent = [location.province, location.country, location.river].filter(Boolean).join(' · ');
+  document.querySelector('#locationPlaceLine').textContent = [
+    location.province,
+    location.country,
+    location.river,
+  ]
+    .filter(Boolean)
+    .join(' · ');
   locationLine.replaceChildren(pinIcon, document.querySelector('#locationPlaceLine'));
   document.querySelector('#factProvince').textContent = location.province;
   document.querySelector('#factRiver').textContent = location.river;
   document.querySelector('#factWaterType').textContent = `Freshwater ${typeLabel}`;
-  const access = location.facts.find(fact => fact.key === 'access_information');
-  const facilities = location.facts.find(fact => fact.key === 'facilities');
-  const rules = location.facts.find(fact => fact.key === 'fishing_rules');
+  const access = location.facts.find((fact) => fact.key === 'access_information');
+  const facilities = location.facts.find((fact) => fact.key === 'facilities');
+  const rules = location.facts.find((fact) => fact.key === 'fishing_rules');
   renderCitedFact(document.querySelector('#factAccess'), access, 'Not verified');
   renderCitedFact(document.querySelector('#factFacilities'), facilities, 'Not recorded');
   renderCitedFact(document.querySelector('#factRules'), rules, 'Not verified');
-  document.querySelector('#communityLocationLabel').textContent = `${location.name.toLocaleUpperCase()} COMMUNITY`;
-  document.querySelector('#postLocationLabel').textContent = `${location.name.toLocaleUpperCase()} COMMUNITY`;
+  document.querySelector('#communityLocationLabel').textContent =
+    `${location.name.toLocaleUpperCase()} COMMUNITY`;
+  document.querySelector('#postLocationLabel').textContent =
+    `${location.name.toLocaleUpperCase()} COMMUNITY`;
   const sourceNote = document.querySelector('#locationSourceNote');
   const coordinateSource = catalogSources.get(location.coordinates.sourceId);
   sourceNote.replaceChildren(document.createTextNode('Location and approximate coordinates from '));
@@ -82,30 +163,61 @@ function renderCatalog(location) {
   coordinateLink.target = '_blank';
   coordinateLink.rel = 'noreferrer';
   coordinateLink.textContent = coordinateSource?.title ?? 'unavailable source record';
-  sourceNote.append(coordinateLink, document.createTextNode(`; ${location.coordinates.precision} precision${location.coordinates.sourceDate ? `, source dated ${formatReportDate(location.coordinates.sourceDate)}` : ''}.`));
-  document.querySelector('#factCoordinates').textContent = `${Math.abs(location.coordinates.latitude).toFixed(2)}\u00b0 S, ${location.coordinates.longitude.toFixed(2)}\u00b0 E (approx.)`;
-  document.querySelector('#coordinatesFact').textContent = `Approx. ${Math.abs(location.coordinates.latitude).toFixed(2)}\u00b0 S, ${location.coordinates.longitude.toFixed(2)}\u00b0 E`;
+  sourceNote.append(
+    coordinateLink,
+    document.createTextNode(
+      `; ${location.coordinates.precision} precision${location.coordinates.sourceDate ? `, source dated ${formatReportDate(location.coordinates.sourceDate)}` : ''}.`,
+    ),
+  );
+  document.querySelector('#factCoordinates').textContent =
+    `${Math.abs(location.coordinates.latitude).toFixed(2)}\u00b0 S, ${location.coordinates.longitude.toFixed(2)}\u00b0 E (approx.)`;
+  document.querySelector('#coordinatesFact').textContent =
+    `Approx. ${Math.abs(location.coordinates.latitude).toFixed(2)}\u00b0 S, ${location.coordinates.longitude.toFixed(2)}\u00b0 E`;
 
-  const capacity = location.facts.find(fact => fact.key === 'full_supply_capacity');
+  const capacity = location.facts.find((fact) => fact.key === 'full_supply_capacity');
   const capacityMeta = document.querySelector('#capacityFact');
   const capacityFact = document.querySelector('#factCapacity');
   if (capacity) {
-    capacityMeta.replaceChildren(capacityMeta.querySelector('svg'), document.createTextNode(` ${capacity.value} ${capacity.unit} full supply capacity`));
-    renderCitedFact(capacityFact, { ...capacity, value: `${capacity.value} ${capacity.unit}` }, 'Not recorded');
+    capacityMeta.replaceChildren(
+      capacityMeta.querySelector('svg'),
+      document.createTextNode(` ${capacity.value} ${capacity.unit} full supply capacity`),
+    );
+    renderCitedFact(
+      capacityFact,
+      { ...capacity, value: `${capacity.value} ${capacity.unit}` },
+      'Not recorded',
+    );
   } else {
-    capacityMeta.replaceChildren(capacityMeta.querySelector('svg'), document.createTextNode(' Capacity not recorded'));
+    capacityMeta.replaceChildren(
+      capacityMeta.querySelector('svg'),
+      document.createTextNode(' Capacity not recorded'),
+    );
     capacityFact.textContent = 'Not recorded';
   }
 
-  const storage = location.observations.find(item => item.metric === 'storage_percent_full_supply');
+  const storage = location.observations.find(
+    (item) => item.metric === 'storage_percent_full_supply',
+  );
   if (storage) {
     const readableDate = formatReportDate(storage.sourceDate);
-    const reportAgeDays = Math.max(0, Math.floor((Date.now() - new Date(`${storage.sourceDate}T00:00:00+02:00`).getTime()) / 86_400_000));
-    const freshnessLabel = reportAgeDays <= 10 ? 'recent weekly report'
-      : reportAgeDays <= 17 ? 'delayed weekly report' : 'stale weekly report';
-    document.querySelector('#factCheckedAt').textContent = formatReportDate(storage.capturedAt.slice(0, 10));
+    const reportAgeDays = Math.max(
+      0,
+      Math.floor(
+        (Date.now() - new Date(`${storage.sourceDate}T00:00:00+02:00`).getTime()) / 86_400_000,
+      ),
+    );
+    const freshnessLabel =
+      reportAgeDays <= 10
+        ? 'recent weekly report'
+        : reportAgeDays <= 17
+          ? 'delayed weekly report'
+          : 'stale weekly report';
+    document.querySelector('#factCheckedAt').textContent = formatReportDate(
+      storage.capturedAt.slice(0, 10),
+    );
     const freshness = storage.latestAvailable ? ' (latest available in report)' : '';
-    document.querySelector('#factLevel').textContent = `${storage.value}${storage.unit} \u00b7 ${readableDate} · ${reportAgeDays} days old · ${freshnessLabel}${freshness}`;
+    document.querySelector('#factLevel').textContent =
+      `${storage.value}${storage.unit} \u00b7 ${readableDate} · ${reportAgeDays} days old · ${freshnessLabel}${freshness}`;
 
     const note = document.querySelector('#storageSourceNote');
     const sourceLink = (source, label) => {
@@ -123,16 +235,21 @@ function renderCatalog(location) {
     note.replaceChildren(
       document.createTextNode('This weekly value comes from the '),
       sourceLink(dwsSource, 'DWS report'),
-      ...(secondarySource ? [
-        document.createTextNode(' and was transcribed from a '),
-        sourceLink(secondarySource, 'secondary summary'),
-      ] : []),
-      document.createTextNode(`. It is not a live sensor reading${storage.latestAvailable ? '; DWS marks it as the latest available data' : ''}. Percentages may exceed 100% of full supply.`),
+      ...(secondarySource
+        ? [
+            document.createTextNode(' and was transcribed from a '),
+            sourceLink(secondarySource, 'secondary summary'),
+          ]
+        : []),
+      document.createTextNode(
+        `. It is not a live sensor reading${storage.latestAvailable ? '; DWS marks it as the latest available data' : ''}. Percentages may exceed 100% of full supply.`,
+      ),
     );
   } else {
     document.querySelector('#factLevel').textContent = 'No storage report recorded';
     document.querySelector('#factCheckedAt').textContent = 'Not recorded';
-    document.querySelector('#storageSourceNote').textContent = 'No storage reading is currently recorded for this location.';
+    document.querySelector('#storageSourceNote').textContent =
+      'No storage reading is currently recorded for this location.';
   }
 
   const speciesList = document.querySelector('#speciesList');
@@ -167,9 +284,19 @@ function renderCatalog(location) {
 function renderLocationCards(query = '') {
   const grid = document.querySelector('#locationCards');
   const normalized = query.trim().toLocaleLowerCase();
-  const matches = locationIndex.filter(location => [location.name, location.province, location.river, location.type]
-    .filter(Boolean).join(' ').toLocaleLowerCase().includes(normalized));
-  document.querySelector('#directoryCount').textContent = `${matches.length} ${matches.length === 1 ? 'location' : 'locations'}`;
+  const province = provinceFilter.value;
+  const matches = locationIndex.filter(
+    (location) =>
+      (!province || location.province === province) &&
+      [location.name, location.province, location.river, location.type]
+        .filter(Boolean)
+        .join(' ')
+        .toLocaleLowerCase()
+        .includes(normalized),
+  );
+  locationMap.showLocations(matches.map((location) => location.id));
+  document.querySelector('#directoryCount').textContent =
+    `${matches.length} ${matches.length === 1 ? 'location' : 'locations'}`;
   grid.replaceChildren();
   if (matches.length === 0) {
     const empty = document.createElement('p');
@@ -191,189 +318,63 @@ function renderLocationCards(query = '') {
     const detail = document.createElement('span');
     detail.className = 'location-card-detail';
     detail.textContent = [location.province, location.river].filter(Boolean).join(' · ');
+    const photo = locationPhotos[location.id];
+    let thumbnail;
+    let credit;
+    if (photo) {
+      thumbnail = document.createElement('img');
+      thumbnail.className = 'location-card-photo';
+      thumbnail.src = photo.src;
+      thumbnail.alt = photo.alt;
+      thumbnail.loading = 'lazy';
+      credit = document.createElement('small');
+      credit.className = 'location-card-photo-credit';
+      credit.textContent = `Photo: ${photo.credit} · ${photo.license}`;
+    }
     const coverage = document.createElement('span');
     coverage.className = 'location-card-coverage';
     coverage.textContent = `${location.factCount} sourced ${location.factCount === 1 ? 'specification' : 'specifications'} · ${location.lastCheckedAt ? `checked ${formatReportDate(location.lastCheckedAt.slice(0, 10))}` : 'details not checked'}`;
-    card.append(tag, name, detail, coverage);
+    card.append(...[thumbnail, tag, name, detail, credit, coverage].filter(Boolean));
     card.addEventListener('click', () => selectLocation(location.id));
     grid.append(card);
   }
 }
 
-function windDirection(degrees) {
-  const directions = ['N', 'NNE', 'NE', 'ENE', 'E', 'ESE', 'SE', 'SSE', 'S', 'SSW', 'SW', 'WSW', 'W', 'WNW', 'NW', 'NNW'];
-  return directions[Math.round(degrees / 22.5) % directions.length];
-}
-
-function weatherDescription(code) {
-  if (code === 0) return 'Clear sky';
-  if ([1, 2].includes(code)) return 'Mostly clear';
-  if (code === 3) return 'Overcast';
-  if ([45, 48].includes(code)) return 'Fog';
-  if ([51, 53, 55, 56, 57].includes(code)) return 'Drizzle';
-  if ([61, 63, 65, 66, 67, 80, 81, 82].includes(code)) return 'Rain showers';
-  if ([71, 73, 75, 77, 85, 86].includes(code)) return 'Snow';
-  if ([95, 96, 99].includes(code)) return 'Thunderstorms';
-  return 'Conditions unavailable';
-}
-
-function weatherSymbol(code) {
-  if (code === 0) return '☀';
-  if ([1, 2].includes(code)) return '◐';
-  if ([45, 48, 51, 53, 55].includes(code)) return '☁';
-  if ([61, 63, 65, 66, 67, 80, 81, 82].includes(code)) return '☂';
-  if ([95, 96, 99].includes(code)) return 'ϟ';
-  return '☁';
-}
-
-function formatHour(date) {
-  return new Intl.DateTimeFormat('en-ZA', { hour: '2-digit', timeZone: WEATHER_TIME_ZONE }).format(date);
-}
-
-function renderHourlyForecast(hourly, currentTime) {
-  const now = new Date(currentTime);
-  const times = hourly.time.map((time, index) => ({ time: new Date(time), index }))
-    .filter(item => item.time >= now)
-    .filter((_, index) => index % 2 === 0)
-    .slice(0, 6);
-
-  const container = document.querySelector('#hourlyForecast');
-  container.replaceChildren();
-  for (const { time, index } of times) {
-    const item = document.createElement('div');
-    item.className = 'hour';
-    const label = document.createElement('span');
-    label.textContent = index === times[0]?.index ? 'NOW' : formatHour(time);
-    const icon = document.createElement('div');
-    icon.className = 'sun-mini';
-    icon.textContent = weatherSymbol(hourly.weather_code[index]);
-    const temperature = document.createElement('strong');
-    temperature.textContent = `${Math.round(hourly.temperature_2m[index])}°`;
-    const wind = document.createElement('span');
-    wind.className = 'hour-wind';
-    wind.textContent = `${Math.round(hourly.wind_speed_10m[index])} km/h`;
-    item.append(label, icon, temperature, wind);
-    container.append(item);
-  }
-}
-
-function renderFishingWindows(daily, hourly, currentTime) {
-  const container = document.querySelector('#fishingWindows');
-  container.replaceChildren();
-  const windows = [];
-  const parseForecastTime = value => new Date(/(?:Z|[+-]\d{2}:?\d{2})$/.test(value) ? value : `${value}+02:00`);
-  const now = parseForecastTime(currentTime).getTime();
-  const describeOutlook = (sunTime, period) => {
-    const target = parseForecastTime(sunTime).getTime();
-    let closestIndex = -1;
-    let closestDistance = Infinity;
-    hourly.time.forEach((time, index) => {
-      const distance = Math.abs(parseForecastTime(time).getTime() - target);
-      if (distance < closestDistance) {
-        closestDistance = distance;
-        closestIndex = index;
-      }
-    });
-    if (closestIndex < 0 || closestDistance > 90 * 60 * 1000) {
-      return { period, timestamp: sunTime, time: formatHour(parseForecastTime(sunTime)), label: 'Forecast unavailable', score: Infinity };
-    }
-    const wind = hourly.wind_speed_10m[closestIndex];
-    const rain = hourly.precipitation_probability[closestIndex];
-    const code = hourly.weather_code[closestIndex];
-    const storm = [95, 96, 99].includes(code);
-    const label = storm ? 'Storms forecast · recheck conditions'
-      : wind >= 30 ? 'Very windy forecast'
-        : rain >= 60 ? 'Rain likely'
-          : wind <= 18 && rain < 25 ? 'Lower wind · low rain chance'
-            : 'Mixed weather outlook';
-    return {
-      period,
-      timestamp: sunTime,
-      time: formatHour(parseForecastTime(sunTime)),
-      label,
-      score: (storm ? 100 : 0) + wind + rain * 0.2,
-    };
-  };
-  for (let index = 0; index < daily.time.length; index += 1) {
-    const date = parseForecastTime(`${daily.time[index]}T12:00:00`);
-    const day = document.createElement('div');
-    day.className = 'fishing-window-day';
-    const label = document.createElement('strong');
-    label.textContent = new Intl.DateTimeFormat('en-ZA', {
-      weekday: 'short', day: 'numeric', month: 'short', timeZone: WEATHER_TIME_ZONE,
-    }).format(date);
-    const dawn = describeOutlook(daily.sunrise[index], 'Dawn');
-    const dusk = describeOutlook(daily.sunset[index], 'Dusk');
-    const outlook = [dawn, dusk];
-    for (const item of outlook) {
-      if (parseForecastTime(item.timestamp).getTime() < now) continue;
-      const row = document.createElement('span');
-      row.textContent = `${item.period} · ${item.time} · ${item.label}`;
-      day.append(row);
-      windows.push({ ...item, date: daily.time[index] });
-    }
-    if (day.childElementCount === 0) continue;
-    day.prepend(label);
-    container.append(day);
-  }
-  if (windows.length === 0) {
-    container.textContent = 'No upcoming dawn or dusk window is available in this forecast.';
-    return;
-  }
-  const recommended = windows.filter(item => Number.isFinite(item.score)).sort((a, b) => a.score - b.score)[0];
-  if (recommended) {
-    const note = document.createElement('p');
-    note.className = 'window-recommendation';
-    const date = parseForecastTime(`${recommended.date}T12:00:00`);
-    const day = new Intl.DateTimeFormat('en-ZA', { weekday: 'short', timeZone: WEATHER_TIME_ZONE }).format(date);
-    note.textContent = `Most favourable weather outlook: ${day} ${recommended.period.toLowerCase()} · weather-only comparison`;
-    container.prepend(note);
-  }
-}
-
-async function loadWeather(coordinates) {
-  const params = new URLSearchParams({
-    latitude: String(coordinates.latitude),
-    longitude: String(coordinates.longitude),
-    current: 'temperature_2m,apparent_temperature,relative_humidity_2m,precipitation,weather_code,cloud_cover,wind_speed_10m,wind_direction_10m',
-    hourly: 'temperature_2m,precipitation_probability,wind_speed_10m,weather_code',
-    daily: 'sunrise,sunset',
-    forecast_days: '2',
-    timezone: WEATHER_TIME_ZONE,
-  });
-  const response = await fetch(`https://api.open-meteo.com/v1/forecast?${params}`, { cache: 'no-store' });
-  if (!response.ok) throw new Error(`Weather provider returned ${response.status}`);
-  const data = await response.json();
-
-  document.querySelector('#currentTemperature').textContent = `${Math.round(data.current.temperature_2m)}\u00b0`;
-  document.querySelector('#currentWeather').textContent = weatherDescription(data.current.weather_code);
-  document.querySelector('#currentWind').textContent = `${windDirection(data.current.wind_direction_10m)} ${Math.round(data.current.wind_speed_10m)} km/h`;
-  document.querySelector('#currentWindSummary').textContent = `Model time ${formatHour(new Date(data.current.time))}`;
-  document.querySelector('#weatherUpdated').textContent = `Forecast model time ${formatHour(new Date(data.current.time))}`;
-  renderHourlyForecast(data.hourly, data.current.time);
-  renderFishingWindows(data.daily, data.hourly, data.current.time);
-}
-
 async function initialise() {
   try {
-    const response = await fetch('/api/locations', { cache: 'no-store' });
+    const response = await fetch('/api/locations');
     if (!response.ok) throw new Error(`Location directory returned ${response.status}`);
     const result = await response.json();
     locationIndex = result.locations ?? [];
+    const provinces = [
+      ...new Set(locationIndex.map((item) => item.province).filter(Boolean)),
+    ].sort();
+    for (const province of provinces) {
+      const option = document.createElement('option');
+      option.value = province;
+      option.textContent = province;
+      provinceFilter.append(option);
+    }
+    locationMap.setLocations(locationIndex);
     renderLocationCards(search.value);
     if (locationIndex.length === 0) throw new Error('No published fishing locations are available');
     const params = new URLSearchParams(location.search);
     const query = params.get('q');
-    if (query) { search.value = query; renderLocationCards(query); }
-    const requestedId = params.get('location');
-    const selected = locationIndex.find(item => item.id === requestedId)
-      ?? locationIndex.find(item => item.id === 'hartbeespoort-dam')
-      ?? locationIndex[0];
+    if (query) {
+      search.value = query;
+      renderLocationCards(query);
+    }
+    const requestedId = params.get('location') || document.body.dataset.locationId;
+    const selected =
+      locationIndex.find((item) => item.id === requestedId) ??
+      locationIndex.find((item) => item.id === 'hartbeespoort-dam') ??
+      locationIndex[0];
     await selectLocation(selected.id, false);
   } catch (error) {
     console.error('Could not load location directory:', error);
     document.querySelector('#directoryCount').textContent = 'Locations unavailable';
-    document.querySelector('#locationCards').textContent = 'Location data is temporarily unavailable.';
+    document.querySelector('#locationCards').textContent =
+      'Location data is temporarily unavailable.';
     document.querySelector('#weatherUpdated').textContent = 'Location data unavailable';
     document.querySelector('#currentWeather').textContent = 'Location data unavailable';
     return;
@@ -382,31 +383,45 @@ async function initialise() {
 
 async function selectLocation(locationId, updateUrl = true) {
   try {
-    const response = await fetch(`/api/locations/${encodeURIComponent(locationId)}`, { cache: 'no-store' });
+    const response = await fetch(`/api/locations/${encodeURIComponent(locationId)}`);
     if (!response.ok) throw new Error(`Location API returned ${response.status}`);
     const result = await response.json();
     if (!result.location) throw new Error('Location is not available in the catalogue');
     activeLocationId = locationId;
     renderLocationCards(search.value);
     renderCatalog(result.location);
+    locationMap.select(locationId, updateUrl);
     const saveButton = document.querySelector('.save-button');
     saveButton.classList.toggle('saved', savedLocationIds.has(locationId));
-    saveButton.setAttribute('aria-label', savedLocationIds.has(locationId) ? `Remove ${result.location.name} from saved locations` : `Save ${result.location.name}`);
+    saveButton.setAttribute(
+      'aria-label',
+      savedLocationIds.has(locationId)
+        ? `Remove ${result.location.name} from saved locations`
+        : `Save ${result.location.name}`,
+    );
     if (updateUrl) {
       const url = new URL(window.location.href);
-      url.searchParams.set('location', locationId);
+      url.pathname = `/explore/locations/${encodeURIComponent(locationId)}/`;
+      url.searchParams.delete('location');
+      url.searchParams.delete('q');
+      url.hash = '';
       window.history.replaceState({}, '', url);
-      document.querySelector('#featureTitle').scrollIntoView({ behavior: 'smooth', block: 'start' });
+      document
+        .querySelector('#featureTitle')
+        .scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
-    await loadCommunity();
+    const user = await community.load();
+    if (user?.emailVerified) await syncSavedLocations(locationId);
     try {
       await loadWeather(result.location.coordinates);
     } catch (error) {
       console.error('Could not load weather forecast:', error);
       document.querySelector('#currentWeather').textContent = 'Forecast unavailable';
       document.querySelector('#weatherUpdated').textContent = 'Weather data unavailable';
-      document.querySelector('#fishingWindows').textContent = 'Sunrise and sunset times unavailable.';
-      document.querySelector('#hourlyForecast').textContent = 'Forecast unavailable. Try again later.';
+      document.querySelector('#fishingWindows').textContent =
+        'Sunrise and sunset times unavailable.';
+      document.querySelector('#hourlyForecast').textContent =
+        'Forecast unavailable. Try again later.';
     }
   } catch (error) {
     console.error('Could not load selected location:', error);
@@ -414,26 +429,42 @@ async function selectLocation(locationId, updateUrl = true) {
   }
 }
 
-window.setInterval(() => {
-  if (!document.hidden && activeLocation?.coordinates) {
-    loadWeather(activeLocation.coordinates).catch(error => console.error('Weather refresh failed:', error));
-  }
-}, 15 * 60 * 1000);
+window.setInterval(
+  () => {
+    if (!document.hidden && activeLocation?.coordinates) {
+      loadWeather(activeLocation.coordinates).catch((error) =>
+        console.error('Weather refresh failed:', error),
+      );
+    }
+  },
+  15 * 60 * 1000,
+);
 
-document.querySelector('.save-button').addEventListener('click', event => {
+document.querySelector('.save-button').addEventListener('click', (event) => {
   const button = event.currentTarget;
   const name = activeLocation?.name ?? 'Location';
   if (!activeLocationId) return;
   const saved = savedLocationIds.has(activeLocationId);
   if (saved) savedLocationIds.delete(activeLocationId);
   else savedLocationIds.add(activeLocationId);
-  try { localStorage.setItem('stillwater-saved-locations', JSON.stringify([...savedLocationIds])); } catch { /* Session state still updates. */ }
-  if (forumUser?.emailVerified) {
-    communityRequest('auth/saved-locations', { method: saved ? 'DELETE' : 'POST', body: JSON.stringify({ locationId: activeLocationId }) })
-      .catch(error => showToast(error.message));
+  try {
+    localStorage.setItem('stillwater-saved-locations', JSON.stringify([...savedLocationIds]));
+  } catch {
+    /* Session state still updates. */
+  }
+  if (community.user?.emailVerified) {
+    community
+      .request('auth/saved-locations', {
+        method: saved ? 'DELETE' : 'POST',
+        body: JSON.stringify({ locationId: activeLocationId }),
+      })
+      .catch((error) => showToast(error.message));
   }
   button.classList.toggle('saved', !saved);
-  button.setAttribute('aria-label', !saved ? `Remove ${name} from saved locations` : `Save ${name}`);
+  button.setAttribute(
+    'aria-label',
+    !saved ? `Remove ${name} from saved locations` : `Save ${name}`,
+  );
   showToast(!saved ? `${name} saved to your waters` : `Removed ${name} from your saved waters`);
 });
 
@@ -442,305 +473,58 @@ document.querySelector('#locationButton').addEventListener('click', () => {
   search.focus();
 });
 search.addEventListener('input', () => renderLocationCards(search.value));
-search.addEventListener('keydown', event => {
+provinceFilter.addEventListener('change', () => {
+  renderLocationCards(search.value);
+  locationMap.showLocations(
+    locationIndex
+      .filter((item) => !provinceFilter.value || item.province === provinceFilter.value)
+      .filter((item) =>
+        [item.name, item.province, item.river, item.type]
+          .filter(Boolean)
+          .join(' ')
+          .toLocaleLowerCase()
+          .includes(search.value.trim().toLocaleLowerCase()),
+      )
+      .map((item) => item.id),
+    true,
+  );
+});
+search.addEventListener('keydown', (event) => {
   if (event.key === 'Enter') {
     event.preventDefault();
     const normalized = search.value.trim().toLocaleLowerCase();
-    const match = locationIndex.find(item => [item.name, item.province, item.river, item.type]
-      .filter(Boolean).join(' ').toLocaleLowerCase().includes(normalized));
+    const match = locationIndex.find((item) =>
+      [item.name, item.province, item.river, item.type]
+        .filter(Boolean)
+        .join(' ')
+        .toLocaleLowerCase()
+        .includes(normalized),
+    );
     if (match) selectLocation(match.id);
   }
 });
-document.addEventListener('keydown', event => {
+document.addEventListener('keydown', (event) => {
   if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') {
     event.preventDefault();
     search.focus();
   }
 });
-document.querySelectorAll('.main-nav a, .mobile-nav a').forEach(link => link.addEventListener('click', () => {
-  document.querySelectorAll('.main-nav a').forEach(item => item.classList.toggle('active', item.getAttribute('href') === link.getAttribute('href')));
-  document.querySelectorAll('.mobile-nav a').forEach(item => item.classList.toggle('mobile-active', item.getAttribute('href') === link.getAttribute('href')));
-}));
-
-const forumPosts = document.querySelector('#forumPosts');
-const forumAccount = document.querySelector('#forumAccount');
-const forumNotices = document.querySelector('#forumNotices');
-const postDialog = document.querySelector('#postDialog');
-const reportDialog = document.querySelector('#reportDialog');
-let forumUser = null;
-
-async function communityRequest(path, options = {}) {
-  const response = await fetch(`/api/community/${path}`, {
-    credentials: 'same-origin',
-    ...options,
-    headers: { ...(options.body ? { 'Content-Type': 'application/json' } : {}), ...(options.headers ?? {}) },
-  });
-  const data = await response.json().catch(() => ({}));
-  if (!response.ok) throw new Error(data.error || 'Community service is unavailable.');
-  return data;
-}
-
-function setForumNotice(message, isError = false) {
-  forumNotices.textContent = message;
-  forumNotices.classList.toggle('error', isError);
-}
-
-function formatCommunityDate(date) {
-  return new Intl.DateTimeFormat('en-ZA', { dateStyle: 'medium', timeStyle: 'short', timeZone: WEATHER_TIME_ZONE }).format(new Date(date));
-}
-
-function addButton(parent, text, className, onClick) {
-  const button = document.createElement('button');
-  button.type = 'button';
-  button.textContent = text;
-  button.className = className;
-  button.addEventListener('click', onClick);
-  parent.append(button);
-  return button;
-}
-
-function reportContent(targetType, targetId) {
-  if (!forumUser) {
-    setForumNotice('Sign in to report content.', true);
-    location.assign(`/sign-in/?returnTo=${encodeURIComponent(location.pathname + location.search + '#community')}`);
-    return;
-  }
-  if (!forumUser.emailVerified) { setForumNotice('Verify your email before reporting content. Visit your account page.', true); return; }
-  const form = document.querySelector('#reportForm');
-  form.elements.targetType.value = targetType;
-  form.elements.targetId.value = targetId;
-  document.querySelector('#reportError').textContent = '';
-  reportDialog.showModal();
-}
-
-function renderReplies(container, replies, post) {
-  for (const reply of replies) {
-    const card = document.createElement('article');
-    card.className = 'forum-reply';
-    const header = document.createElement('div');
-    header.className = 'forum-post-meta';
-    const author = document.createElement('strong');
-    author.textContent = reply.displayName;
-    const date = document.createElement('time');
-    date.dateTime = reply.createdAt;
-    date.textContent = formatCommunityDate(reply.createdAt);
-    header.append(author, date);
-    const body = document.createElement('p');
-    body.textContent = reply.body;
-    card.append(header, body);
-    if (forumUser?.emailVerified) addButton(card, 'Report', 'text-action', () => reportContent('reply', reply.id));
-    container.append(card);
-  }
-  if (forumUser?.emailVerified && !post.isLocked) {
-    const form = document.createElement('form');
-    form.className = 'reply-form';
-    const field = document.createElement('input');
-    field.name = 'body';
-    field.required = true;
-    field.minLength = 2;
-    field.maxLength = 3000;
-    field.placeholder = 'Write a helpful reply…';
-    field.setAttribute('aria-label', 'Write a reply');
-    const submit = document.createElement('button');
-    submit.type = 'submit';
-    submit.textContent = 'Reply';
-    form.append(field, submit);
-    form.addEventListener('submit', async event => {
-      event.preventDefault();
-      submit.disabled = true;
-      try {
-        await communityRequest(`posts/${post.id}/replies`, { method: 'POST', body: JSON.stringify({ body: field.value }) });
-        await loadCommunity();
-        setForumNotice('Reply posted.');
-      } catch (error) {
-        setForumNotice(error.message, true);
-        submit.disabled = false;
-      }
-    });
-    container.append(form);
-  }
-}
-
-function renderPosts(posts) {
-  forumPosts.replaceChildren();
-  if (!posts.length) {
-    const empty = document.createElement('div');
-    empty.className = 'empty-reports forum-empty';
-    const title = document.createElement('strong');
-    title.textContent = 'Start the first discussion';
-    const hint = document.createElement('span');
-    hint.textContent = 'Ask about access, share a trip note, or compare techniques for this water.';
-    empty.append(title, hint);
-    forumPosts.append(empty);
-    return;
-  }
-  for (const post of posts) {
-    const article = document.createElement('article');
-    article.className = 'forum-post';
-    const meta = document.createElement('div');
-    meta.className = 'forum-post-meta';
-    const author = document.createElement('strong');
-    author.textContent = post.displayName;
-    const date = document.createElement('time');
-    date.dateTime = post.createdAt;
-    date.textContent = formatCommunityDate(post.createdAt);
-    meta.append(author, date);
-    if (post.isLocked) {
-      const locked = document.createElement('span');
-      locked.className = 'forum-locked';
-      locked.textContent = 'Locked';
-      meta.append(locked);
-    }
-    const title = document.createElement('h3');
-    title.textContent = post.title;
-    const content = document.createElement('p');
-    content.className = 'forum-post-body';
-    content.textContent = post.body;
-    const actions = document.createElement('div');
-    actions.className = 'forum-post-actions';
-    const replyCount = document.createElement('span');
-    replyCount.textContent = `${post.replyCount} ${post.replyCount === 1 ? 'reply' : 'replies'}`;
-    actions.append(replyCount);
-    if (forumUser?.emailVerified) addButton(actions, 'Report', 'text-action', () => reportContent('post', post.id));
-    article.append(meta, title, content, actions);
-    const replies = document.createElement('div');
-    replies.className = 'forum-replies';
-    renderReplies(replies, post.replies, post);
-    article.append(replies);
-    forumPosts.append(article);
-  }
-}
-
-function renderForumAccount(user) {
-  forumAccount.replaceChildren();
-  forumAccount.hidden = !user;
-  document.querySelector('#forumSignIn').hidden = Boolean(user);
-  document.querySelector('#newDiscussion').disabled = false;
-  if (!user) return;
-  const signed = document.createElement('span');
-  signed.textContent = `Signed in as ${user.displayName}`;
-  forumAccount.append(signed);
-  addButton(forumAccount, 'Sign out', 'text-action', async () => {
-    try {
-      await communityRequest('auth/logout', { method: 'POST', body: '{}' });
-      forumUser = null;
-      await loadCommunity();
-    } catch (error) { setForumNotice(error.message, true); }
-  });
-  if (!user.emailVerified) {
-    const verify = document.createElement('a');
-    verify.href = '/account/';
-    verify.textContent = 'Verify email to post';
-    verify.className = 'text-action';
-    forumAccount.append(verify);
-  }
-}
-
-async function loadModeration() {
-  const panel = document.querySelector('#moderationPanel');
-  if (!forumUser || !['moderator', 'admin'].includes(forumUser.role)) {
-    panel.hidden = true;
-    return;
-  }
-  panel.hidden = false;
-  const list = document.querySelector('#moderationReports');
-  try {
-    const { reports } = await communityRequest('moderation');
-    list.replaceChildren();
-    if (!reports.length) {
-      const empty = document.createElement('p');
-      empty.textContent = 'No open reports.';
-      list.append(empty);
-      return;
-    }
-    for (const report of reports) {
-      const row = document.createElement('article');
-      row.className = 'moderation-report';
-      const description = document.createElement('p');
-      description.textContent = `${report.reason.replaceAll('_', ' ')} · ${report.reporterName}: ${report.targetPreview || '(content unavailable)'}`;
-      row.append(description);
-      const actions = document.createElement('div');
-      actions.className = 'forum-post-actions';
-      const runAction = async action => {
-        try {
-          await communityRequest('moderation', { method: 'POST', body: JSON.stringify({ reportId: report.id, action }) });
-          await loadCommunity();
-        } catch (error) { setForumNotice(error.message, true); }
-      };
-      addButton(actions, 'Hide', 'text-action', () => runAction('hide'));
-      if (report.targetType === 'post') addButton(actions, 'Restore', 'text-action', () => runAction('restore'));
-      if (report.targetType === 'post') addButton(actions, report.targetLocked ? 'Unlock' : 'Lock', 'text-action', () => runAction(report.targetLocked ? 'unlock' : 'lock'));
-      addButton(actions, 'Dismiss', 'text-action', () => runAction('dismiss'));
-      row.append(actions);
-      list.append(row);
-    }
-  } catch (error) {
-    list.textContent = error.message;
-  }
-}
-
-async function loadCommunity() {
-  if (!activeLocationId) return;
-  try {
-    const data = await communityRequest(encodeURIComponent(activeLocationId));
-    forumUser = data.user;
-    if (forumUser?.emailVerified) {
-      try {
-        const saved = await communityRequest('auth/saved-locations');
-        const remoteIds = new Set(saved.locations.map(location => location.id));
-        for (const id of savedLocationIds) {
-          if (!remoteIds.has(id)) await communityRequest('auth/saved-locations', { method: 'POST', body: JSON.stringify({ locationId: id }) }).catch(() => {});
-        }
-        for (const id of remoteIds) savedLocationIds.add(id);
-        localStorage.setItem('stillwater-saved-locations', JSON.stringify([...savedLocationIds]));
-        document.querySelector('.save-button').classList.toggle('saved', savedLocationIds.has(activeLocationId));
-      } catch { /* Local saved waters remain available when sync is unavailable. */ }
-    }
-    renderForumAccount(forumUser);
-    renderPosts(data.posts);
-    await loadModeration();
-  } catch (error) {
-    forumPosts.textContent = error.message;
-  }
-}
-
-function goToSignIn() { location.assign(`/sign-in/?returnTo=${encodeURIComponent(location.pathname + location.search + '#community')}`); }
-
-document.querySelector('#forumSignIn').addEventListener('click', goToSignIn);
-document.querySelector('#newDiscussion').addEventListener('click', () => {
-  if (!forumUser) { goToSignIn(); return; }
-  if (!forumUser.emailVerified) { setForumNotice('Verify your email from your account page before starting a discussion.', true); return; }
-  document.querySelector('#postError').textContent = '';
-  postDialog.showModal();
-});
-document.querySelectorAll('[data-close-dialog]').forEach(button => button.addEventListener('click', () => button.closest('dialog').close()));
-document.querySelectorAll('dialog').forEach(dialog => dialog.addEventListener('click', event => { if (event.target === dialog) dialog.close(); }));
-
-document.querySelector('#postForm').addEventListener('submit', async event => {
-  event.preventDefault();
-  const form = event.currentTarget;
-  const errorBox = document.querySelector('#postError');
-  errorBox.textContent = '';
-  try {
-    await communityRequest(`${encodeURIComponent(activeLocationId)}/posts`, { method: 'POST', body: JSON.stringify(Object.fromEntries(new FormData(form))) });
-    postDialog.close();
-    form.reset();
-    await loadCommunity();
-    setForumNotice('Discussion posted.');
-  } catch (error) { errorBox.textContent = error.message; }
-});
-
-document.querySelector('#reportForm').addEventListener('submit', async event => {
-  event.preventDefault();
-  const form = event.currentTarget;
-  const errorBox = document.querySelector('#reportError');
-  errorBox.textContent = '';
-  try {
-    await communityRequest('reports', { method: 'POST', body: JSON.stringify(Object.fromEntries(new FormData(form))) });
-    reportDialog.close();
-    form.reset();
-    setForumNotice('Report sent to the moderation queue.');
-  } catch (error) { errorBox.textContent = error.message; }
-});
+document.querySelectorAll('.main-nav a, .mobile-nav a').forEach((link) =>
+  link.addEventListener('click', () => {
+    document
+      .querySelectorAll('.main-nav a')
+      .forEach((item) =>
+        item.classList.toggle('active', item.getAttribute('href') === link.getAttribute('href')),
+      );
+    document
+      .querySelectorAll('.mobile-nav a')
+      .forEach((item) =>
+        item.classList.toggle(
+          'mobile-active',
+          item.getAttribute('href') === link.getAttribute('href'),
+        ),
+      );
+  }),
+);
 
 initialise();
