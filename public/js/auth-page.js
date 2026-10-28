@@ -3,10 +3,10 @@ const form = document.querySelector('#authForm');
 const message = document.querySelector('#authMessage');
 const params = new URLSearchParams(location.search);
 const returnTo = params.get('returnTo');
-function safeReturnTo(value) {
+function safeReturnTo(value, fallback = '/') {
   return value && value.startsWith('/') && !value.startsWith('//') && !value.startsWith('/\\')
     ? value
-    : '/account/';
+    : fallback;
 }
 async function request(path, body) {
   const response = await fetch(`/api/community/auth/${path}`, {
@@ -54,7 +54,7 @@ if (page === 'verify-email') {
         if (!data.user.emailVerified) location.assign('/account/');
         else location.assign(safeReturnTo(returnTo));
       } else if (page === 'register') {
-        body.returnTo = safeReturnTo(returnTo);
+        body.returnTo = safeReturnTo(returnTo, '/account/');
         await request('register', body);
         status(
           'Account created. Check your inbox for the verification link. You can sign in after confirming your email.',
