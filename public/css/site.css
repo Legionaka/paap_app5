@@ -1034,6 +1034,40 @@ a {
   color: white;
   font-size: 9px;
 }
+.offline-page {
+  display: grid;
+  align-content: center;
+  justify-items: start;
+  gap: 1rem;
+  width: min(100% - 2rem, 42rem);
+  min-height: 100svh;
+  margin-inline: auto;
+  padding-block: 3rem;
+}
+.offline-page h1,
+.offline-page p {
+  margin: 0;
+}
+.offline-page h1 {
+  font-size: clamp(2rem, 8vw, 4rem);
+  line-height: 1.05;
+}
+.offline-page p {
+  max-width: 38rem;
+  color: var(--color-muted);
+}
+.offline-page a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 2.75rem;
+  margin-top: 0.75rem;
+  padding: 0.65rem 1rem;
+  border-radius: var(--radius-sm);
+  background: var(--color-brand-strong);
+  color: var(--color-surface);
+  font-weight: 650;
+  text-decoration: none;
+}
 @media (max-width: 760px) {
   .hero-photo-credit {
     bottom: 18px;

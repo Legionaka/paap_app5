@@ -17,6 +17,7 @@ try {
 }
 const search = document.querySelector('#locationSearch');
 const provinceFilter = document.querySelector('#provinceFilter');
+const speciesFilter = document.querySelector('#speciesFilter');
 const toast = document.querySelector('#toast');
 const locationMap = createLocationMap((locationId) => selectLocation(locationId));
 const community = createCommunity(() => activeLocationId);
@@ -281,27 +282,32 @@ function renderCatalog(location) {
   }
 }
 
-function renderLocationCards(query = '') {
+function renderLocationCards(query = '', fitMap = false) {
   const grid = document.querySelector('#locationCards');
   const normalized = query.trim().toLocaleLowerCase();
   const province = provinceFilter.value;
+  const species = speciesFilter.value;
   const matches = locationIndex.filter(
     (location) =>
       (!province || location.province === province) &&
-      [location.name, location.province, location.river, location.type]
+      (!species || location.species.includes(species)) &&
+      [location.name, location.province, location.river, location.type, ...location.species]
         .filter(Boolean)
         .join(' ')
         .toLocaleLowerCase()
         .includes(normalized),
   );
-  locationMap.showLocations(matches.map((location) => location.id));
+  locationMap.showLocations(
+    matches.map((location) => location.id),
+    fitMap && matches.length > 0,
+  );
   document.querySelector('#directoryCount').textContent =
     `${matches.length} ${matches.length === 1 ? 'location' : 'locations'}`;
   grid.replaceChildren();
   if (matches.length === 0) {
     const empty = document.createElement('p');
     empty.className = 'forum-loading';
-    empty.textContent = 'No locations match that search.';
+    empty.textContent = 'No locations match these filters.';
     grid.append(empty);
     return;
   }
@@ -345,7 +351,10 @@ async function initialise() {
     const response = await fetch('/api/locations');
     if (!response.ok) throw new Error(`Location directory returned ${response.status}`);
     const result = await response.json();
-    locationIndex = result.locations ?? [];
+    locationIndex = (result.locations ?? []).map((location) => ({
+      ...location,
+      species: Array.isArray(location.species) ? location.species : [],
+    }));
     const provinces = [
       ...new Set(locationIndex.map((item) => item.province).filter(Boolean)),
     ].sort();
@@ -354,6 +363,15 @@ async function initialise() {
       option.value = province;
       option.textContent = province;
       provinceFilter.append(option);
+    }
+    const speciesNames = [...new Set(locationIndex.flatMap((location) => location.species))].sort(
+      (left, right) => left.localeCompare(right, 'en-ZA'),
+    );
+    for (const speciesName of speciesNames) {
+      const option = document.createElement('option');
+      option.value = speciesName;
+      option.textContent = speciesName;
+      speciesFilter.append(option);
     }
     locationMap.setLocations(locationIndex);
     renderLocationCards(search.value);
@@ -473,22 +491,8 @@ document.querySelector('#locationButton').addEventListener('click', () => {
   search.focus();
 });
 search.addEventListener('input', () => renderLocationCards(search.value));
-provinceFilter.addEventListener('change', () => {
-  renderLocationCards(search.value);
-  locationMap.showLocations(
-    locationIndex
-      .filter((item) => !provinceFilter.value || item.province === provinceFilter.value)
-      .filter((item) =>
-        [item.name, item.province, item.river, item.type]
-          .filter(Boolean)
-          .join(' ')
-          .toLocaleLowerCase()
-          .includes(search.value.trim().toLocaleLowerCase()),
-      )
-      .map((item) => item.id),
-    true,
-  );
-});
+provinceFilter.addEventListener('change', () => renderLocationCards(search.value, true));
+speciesFilter.addEventListener('change', () => renderLocationCards(search.value, true));
 search.addEventListener('keydown', (event) => {
   if (event.key === 'Enter') {
     event.preventDefault();

@@ -16,6 +16,10 @@ export async function getPublishedLocations() {
            extensions.st_y(l.point::extensions.geometry) AS latitude,
            extensions.st_x(l.point::extensions.geometry) AS longitude,
            l.coordinate_precision AS "coordinatePrecision",
+           (SELECT COALESCE(json_agg(s.common_name ORDER BY s.common_name), '[]'::json)
+            FROM public.location_species ls
+            JOIN public.species s ON s.id = ls.species_id
+            WHERE ls.location_id = l.id) AS species,
            (SELECT count(*)::int FROM public.location_facts f WHERE f.location_id = l.id) AS "factCount",
            (SELECT max(f.checked_at) FROM public.location_facts f WHERE f.location_id = l.id) AS "lastCheckedAt"
     FROM public.locations l

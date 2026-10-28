@@ -86,6 +86,19 @@ a {
   color: inherit;
 }
 
+.connection-status {
+  position: sticky;
+  z-index: 1200;
+  top: 0;
+  padding: 0.65rem 1rem;
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-brand-soft);
+  color: var(--color-ink);
+  text-align: center;
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
 [hidden] {
   display: none !important;
 }
