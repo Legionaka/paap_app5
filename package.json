@@ -7,8 +7,8 @@
     "predev": "node scripts/generate-location-pages.js",
     "dev": "node js/dev-server.js",
     "import:dws": "node scripts/import-dws.js",
-    "format": "prettier --config .prettierrc.json --write \"public/**/*.html\" \"public/**/*.css\" \"public/js/**/*.js\" \"server/**/*.js\" \"api/**/*.js\" \"js/**/*.js\" \"scripts/**/*.js\" \"tests/**/*.js\" package.json vercel.json .prettierrc.json README.md PHOTO_CREDITS.md",
-    "format:check": "prettier --config .prettierrc.json --check \"public/**/*.html\" \"public/**/*.css\" \"public/js/**/*.js\" \"server/**/*.js\" \"api/**/*.js\" \"js/**/*.js\" \"scripts/**/*.js\" \"tests/**/*.js\" package.json vercel.json .prettierrc.json README.md PHOTO_CREDITS.md",
+    "format": "prettier --config .prettierrc.json --write \"public/**/*.html\" \"public/**/*.css\" \"public/js/**/*.js\" \"server/**/*.js\" \"api/**/*.js\" \"js/**/*.js\" \"scripts/**/*.js\" \"tests/**/*.js\" package.json .prettierrc.json README.md PHOTO_CREDITS.md",
+    "format:check": "prettier --config .prettierrc.json --check \"public/**/*.html\" \"public/**/*.css\" \"public/js/**/*.js\" \"server/**/*.js\" \"api/**/*.js\" \"js/**/*.js\" \"scripts/**/*.js\" \"tests/**/*.js\" package.json .prettierrc.json README.md PHOTO_CREDITS.md",
     "test": "node --test",
     "check": "npm run format:check && npm test",
     "build": "npm run check && node scripts/generate-location-pages.js"
