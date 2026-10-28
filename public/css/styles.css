@@ -1,16 +1,3 @@
-:root {
-  --ink: var(--color-ink);
-  --muted: var(--color-muted);
-  --line: var(--color-border);
-  --paper: var(--color-surface);
-  --canvas: var(--color-canvas);
-  --green: var(--color-brand);
-  --mint: var(--color-brand-soft);
-  --orange: var(--color-accent);
-  --serif: var(--font-sans);
-  --sans: var(--font-sans);
-  --display: var(--font-sans);
-}
 * {
   box-sizing: border-box;
 }
@@ -131,8 +118,8 @@ a {
 }
 .avatar,
 .user-avatar {
-  width: 34px;
-  height: 34px;
+  width: 44px;
+  height: 44px;
   border-radius: 50%;
   display: grid;
   place-items: center;
@@ -155,7 +142,7 @@ a {
   align-items: center;
   gap: 8px;
   color: var(--color-muted);
-  font-size: 10px;
+  font-size: var(--text-caption);
   font-weight: 700;
   letter-spacing: 1.2px;
 }
@@ -194,6 +181,12 @@ a {
   box-shadow: 0 3px 12px rgb(var(--color-brand-strong-rgb) / 0.03);
   margin-bottom: 4px;
 }
+.search-wrap:focus-within,
+.hero-search:focus-within {
+  outline: 3px solid var(--color-brand);
+  outline-offset: 3px;
+  border-color: var(--color-brand);
+}
 .search-wrap > svg {
   height: 18px;
   width: 18px;
@@ -210,14 +203,14 @@ a {
   outline: 0;
   padding: 0 11px;
   color: var(--ink);
-  font-size: 12px;
+  font-size: 16px;
   background: transparent;
 }
 .search-wrap input::placeholder {
   color: var(--color-muted);
 }
 .search-wrap kbd {
-  font: 10px var(--sans);
+  font: var(--text-caption) var(--sans);
   border: 1px solid var(--color-brand-soft);
   border-radius: 4px;
   padding: 3px 5px;
@@ -273,7 +266,7 @@ a {
   border-radius: 5px;
   padding: 7px 9px;
   color: var(--color-ink-soft);
-  font-size: 9px;
+  font-size: var(--text-caption);
   font-weight: 700;
   letter-spacing: 0.65px;
   display: flex;
@@ -288,8 +281,8 @@ a {
   background: var(--color-muted);
 }
 .save-button {
-  width: 34px;
-  height: 34px;
+  width: 44px;
+  height: 44px;
   border: 1px solid rgb(var(--color-surface-rgb) / 0.46);
   border-radius: 50%;
   background: rgb(var(--color-ink-rgb) / 0.25);
@@ -315,7 +308,7 @@ a {
   color: white;
 }
 .image-kicker {
-  font-size: 9px;
+  font-size: var(--text-caption);
   font-weight: 700;
   letter-spacing: 1.2px;
   color: var(--color-border);
@@ -329,7 +322,7 @@ a {
   display: flex;
   align-items: center;
   gap: 6px;
-  font-size: 11px;
+  font-size: var(--text-caption);
   color: var(--color-brand-soft);
 }
 .image-location svg {
@@ -357,7 +350,7 @@ a {
   align-items: center;
   gap: 5px;
   color: var(--color-muted);
-  font-size: 11px;
+  font-size: var(--text-caption);
 }
 .rating strong {
   color: var(--color-ink);
@@ -373,7 +366,7 @@ a {
   border-radius: 4px;
   background: var(--color-brand-soft);
   color: var(--color-success);
-  font-size: 8px;
+  font-size: var(--text-caption);
   font-weight: 700;
   letter-spacing: 0.45px;
 }
@@ -388,7 +381,7 @@ a {
   margin: 9px 0 0;
   max-width: 590px;
   color: var(--color-muted);
-  font-size: 11px;
+  font-size: var(--text-caption);
   line-height: 1.6;
 }
 .text-link {
@@ -398,7 +391,7 @@ a {
   gap: 8px;
   margin-top: 2px;
   color: var(--green);
-  font-size: 10px;
+  font-size: var(--text-caption);
   font-weight: 700;
 }
 .text-link span {
@@ -412,7 +405,7 @@ a {
   align-items: center;
   gap: 14px;
   color: var(--color-muted);
-  font-size: 10px;
+  font-size: var(--text-caption);
 }
 .feature-meta > span {
   display: flex;
@@ -441,7 +434,7 @@ a {
   margin-bottom: 13px;
 }
 .small-eyebrow {
-  font-size: 9px;
+  font-size: var(--text-caption);
   letter-spacing: 1px;
   color: var(--color-muted);
 }
@@ -458,7 +451,7 @@ a {
   gap: 6px;
   margin-bottom: 3px;
   color: var(--color-muted);
-  font-size: 10px;
+  font-size: var(--text-caption);
 }
 .conditions-card {
   padding: 17px 18px 0;
@@ -498,7 +491,7 @@ a {
 }
 .condition-main > div:nth-child(2) > span,
 .wind span {
-  font-size: 10px;
+  font-size: var(--text-caption);
   color: var(--color-muted);
 }
 .condition-divider {
@@ -525,7 +518,7 @@ a {
   gap: 4px;
 }
 .wind strong {
-  font-size: 11px;
+  font-size: var(--text-caption);
   font-weight: 600;
 }
 .bite-score {
@@ -554,7 +547,7 @@ a {
   gap: 2px;
 }
 .score-label {
-  font-size: 8px;
+  font-size: var(--text-caption);
   letter-spacing: 0.8px;
   color: var(--color-muted);
   font-weight: 700;
@@ -564,7 +557,7 @@ a {
   color: var(--color-success);
 }
 .score-time {
-  font-size: 9px;
+  font-size: var(--text-caption);
   color: var(--color-muted);
 }
 .hourly {
@@ -580,10 +573,10 @@ a {
   gap: 4px;
   position: relative;
   color: var(--color-muted);
-  font-size: 8px;
+  font-size: var(--text-caption);
 }
 .hour strong {
-  font: 600 11px var(--display);
+  font: 600 var(--text-caption) var(--display);
   color: var(--color-ink-soft);
 }
 .hour > span {
@@ -625,7 +618,7 @@ a {
   border-radius: 3px;
   background: var(--color-brand-soft);
   color: var(--color-muted);
-  font-size: 6px;
+  font-size: var(--text-caption);
   font-weight: 700;
   padding: 2px;
 }
@@ -633,19 +626,21 @@ a {
   color: var(--green);
 }
 .condition-footer {
-  height: 40px;
+  min-height: 40px;
   border-top: 1px solid var(--color-brand-soft);
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 10px;
+  flex-wrap: wrap;
+  padding: 8px 0;
 }
 .condition-footer span {
   display: flex;
   align-items: center;
   gap: 6px;
   color: var(--color-muted);
-  font-size: 9px;
+  font-size: var(--text-caption);
 }
 .condition-footer strong {
   color: var(--color-ink-soft);
@@ -680,7 +675,7 @@ a {
   flex: 1;
 }
 .species-type {
-  font-size: 8px;
+  font-size: var(--text-caption);
   font-weight: 700;
   letter-spacing: 0.75px;
   color: var(--color-accent);
@@ -694,7 +689,7 @@ a {
   letter-spacing: -0.2px;
 }
 .species-info p {
-  font-size: 9px;
+  font-size: var(--text-caption);
   color: var(--color-muted);
   margin: 0;
   white-space: nowrap;
@@ -719,7 +714,7 @@ a {
 .community-head p {
   margin: 6px 0 0;
   color: var(--color-muted);
-  font-size: 10px;
+  font-size: var(--text-caption);
 }
 .button-outline {
   display: flex;
@@ -729,9 +724,8 @@ a {
   border: 1px solid var(--color-border);
   border-radius: 6px;
   color: var(--green);
-  font-size: 9px;
+  font-size: var(--text-caption);
   font-weight: 700;
-  white-space: nowrap;
 }
 .button-outline span {
   font-size: 14px;
@@ -747,7 +741,7 @@ a {
   width: 31px;
   height: 31px;
   flex: none;
-  font-size: 9px;
+  font-size: var(--text-caption);
 }
 .avatar-blue {
   background: var(--color-brand-soft);
@@ -766,11 +760,11 @@ a {
   align-items: center;
   gap: 8px;
   color: var(--color-muted);
-  font-size: 9px;
+  font-size: var(--text-caption);
 }
 .discussion-meta strong {
   color: var(--color-ink-soft);
-  font-size: 10px;
+  font-size: var(--text-caption);
 }
 .discussion-topic {
   margin-left: auto;
@@ -778,7 +772,7 @@ a {
   border-radius: 3px;
   background: var(--color-brand-soft);
   color: var(--color-muted);
-  font-size: 7px;
+  font-size: var(--text-caption);
   font-weight: 700;
   letter-spacing: 0.4px;
 }
@@ -788,7 +782,7 @@ a {
 }
 .discussion-content > p {
   color: var(--color-muted);
-  font-size: 10px;
+  font-size: var(--text-caption);
   line-height: 1.65;
   margin: 8px 0;
 }
@@ -802,7 +796,7 @@ a {
   background: transparent;
   padding: 0;
   color: var(--color-muted);
-  font-size: 9px;
+  font-size: var(--text-caption);
 }
 .discussion-actions .liked {
   color: var(--color-accent);
@@ -821,7 +815,7 @@ a {
   background: var(--color-canvas);
   border-radius: 5px;
   color: var(--color-muted);
-  font-size: 8px;
+  font-size: var(--text-caption);
 }
 .sidebar {
   display: grid;
@@ -868,7 +862,7 @@ a {
   color: var(--color-ink-soft);
 }
 .tip-credit {
-  font-size: 8px;
+  font-size: var(--text-caption);
   color: var(--color-muted);
 }
 .conditions-note {
@@ -884,12 +878,12 @@ a {
   place-items: center;
   border: 1px solid var(--color-muted);
   border-radius: 50%;
-  font-size: 9px;
+  font-size: var(--text-caption);
   flex: none;
 }
 .conditions-note p {
   margin: 0;
-  font-size: 8px;
+  font-size: var(--text-caption);
   line-height: 1.55;
 }
 .conditions-note strong {
@@ -905,7 +899,7 @@ a {
   gap: 20px;
   border-top: 1px solid var(--color-border);
   color: var(--color-muted);
-  font-size: 9px;
+  font-size: var(--text-caption);
 }
 .footer-brand {
   font-size: 16px;
@@ -989,7 +983,7 @@ a {
     padding: 9px 0;
   }
   .condition-footer span {
-    font-size: 8px;
+    font-size: var(--text-caption);
   }
   .nearby-card {
     padding-left: 12px;
@@ -1079,7 +1073,7 @@ a {
     font-size: 25px;
   }
   .image-location {
-    font-size: 9px;
+    font-size: var(--text-caption);
   }
   .image-top {
     left: 14px;
@@ -1090,7 +1084,7 @@ a {
     padding: 14px 14px 12px;
   }
   .rating {
-    font-size: 10px;
+    font-size: var(--text-caption);
     flex-wrap: wrap;
   }
   .verified {
@@ -1100,7 +1094,7 @@ a {
     display: block;
   }
   .feature-summary p {
-    font-size: 10px;
+    font-size: var(--text-caption);
     margin-top: 8px;
   }
   .feature-summary > .text-link {
@@ -1111,7 +1105,7 @@ a {
     margin-top: 12px;
     padding-top: 10px;
     justify-content: space-between;
-    font-size: 8px;
+    font-size: var(--text-caption);
   }
   .feature-meta > span {
     gap: 4px;
@@ -1131,7 +1125,7 @@ a {
     font-size: 19px;
   }
   .updated {
-    font-size: 9px;
+    font-size: var(--text-caption);
   }
   .conditions-card {
     padding: 12px 11px 0;
@@ -1152,7 +1146,7 @@ a {
     font-size: 24px;
   }
   .condition-main > div:nth-child(2) > span {
-    font-size: 9px;
+    font-size: var(--text-caption);
   }
   .condition-divider {
     margin: 0 10px;
@@ -1166,10 +1160,10 @@ a {
     height: 15px;
   }
   .wind strong {
-    font-size: 9px;
+    font-size: var(--text-caption);
   }
   .wind span {
-    font-size: 8px;
+    font-size: var(--text-caption);
   }
   .bite-score {
     gap: 5px;
@@ -1180,16 +1174,16 @@ a {
     border-width: 2px;
   }
   .score-ring span {
-    font-size: 11px;
+    font-size: var(--text-caption);
   }
   .score-label {
-    font-size: 7px;
+    font-size: var(--text-caption);
   }
   .bite-score strong {
-    font-size: 10px;
+    font-size: var(--text-caption);
   }
   .score-time {
-    font-size: 7px;
+    font-size: var(--text-caption);
   }
   .hourly {
     margin-top: 10px;
@@ -1207,7 +1201,7 @@ a {
   }
   .condition-footer span {
     gap: 3px;
-    font-size: 7px;
+    font-size: var(--text-caption);
     white-space: nowrap;
   }
   .condition-footer svg {
@@ -1215,7 +1209,7 @@ a {
     height: 11px;
   }
   .condition-footer strong {
-    font-size: 7px;
+    font-size: var(--text-caption);
   }
   .species-section {
     margin-top: 28px;
@@ -1226,15 +1220,15 @@ a {
     gap: 9px;
   }
   .species-info h3 {
-    font-size: 11px;
+    font-size: var(--text-caption);
   }
   .species-info p {
-    font-size: 8px;
+    font-size: var(--text-caption);
     white-space: normal;
     line-height: 1.3;
   }
   .species-type {
-    font-size: 7px;
+    font-size: var(--text-caption);
   }
   .community-card {
     margin-top: 29px;
@@ -1250,7 +1244,7 @@ a {
   }
   .community-head p {
     max-width: 225px;
-    font-size: 9px;
+    font-size: var(--text-caption);
     line-height: 1.5;
   }
   .button-outline {
@@ -1268,25 +1262,25 @@ a {
   .user-avatar {
     height: 27px;
     width: 27px;
-    font-size: 8px;
+    font-size: var(--text-caption);
   }
   .discussion-meta {
     gap: 6px;
-    font-size: 8px;
+    font-size: var(--text-caption);
   }
   .discussion-meta strong {
-    font-size: 9px;
+    font-size: var(--text-caption);
   }
   .discussion-topic {
-    font-size: 6px;
+    font-size: var(--text-caption);
     padding: 4px;
   }
   .discussion-content > p {
-    font-size: 9px;
+    font-size: var(--text-caption);
     margin: 7px 0;
   }
   .discussion-actions button {
-    font-size: 8px;
+    font-size: var(--text-caption);
   }
   .discussion-fish {
     right: 0;
@@ -1332,7 +1326,7 @@ a {
     justify-items: center;
     gap: 3px;
     color: var(--color-muted);
-    font-size: 8px;
+    font-size: var(--text-caption);
     font-weight: 600;
   }
   .mobile-nav a span {
@@ -1345,7 +1339,7 @@ a {
   }
   .toast {
     bottom: calc(75px + env(safe-area-inset-bottom));
-    font-size: 11px;
+    font-size: var(--text-caption);
   }
 }
 @media (max-width: 380px) {
@@ -1368,17 +1362,17 @@ a {
     height: 34px;
   }
   .wind strong {
-    font-size: 8px;
+    font-size: var(--text-caption);
   }
   .feature-meta {
-    font-size: 7px;
+    font-size: var(--text-caption);
     gap: 5px;
   }
   .discussion-topic {
     letter-spacing: 0;
   }
   .condition-footer span {
-    font-size: 6px;
+    font-size: var(--text-caption);
   }
 }
 /* Provenance and live-data states added for the verified location profile. */
@@ -1399,10 +1393,10 @@ a {
   padding: 13px;
   text-align: center;
   color: var(--color-muted);
-  font-size: 10px;
+  font-size: var(--text-caption);
 }
 .hour-wind {
-  font-size: 8px;
+  font-size: var(--text-caption);
   color: var(--color-muted);
 }
 .condition-footer a {
@@ -1423,12 +1417,12 @@ a {
   min-width: 145px;
 }
 .fishing-windows > div:first-child strong {
-  font-size: 11px;
+  font-size: var(--text-caption);
 }
 .fishing-windows p {
   margin: 4px 0 0;
   color: var(--muted);
-  font-size: 9px;
+  font-size: var(--text-caption);
   line-height: 1.4;
 }
 .fishing-window-list {
@@ -1440,11 +1434,11 @@ a {
   display: grid;
   gap: 4px;
   color: var(--color-muted);
-  font-size: 9px;
+  font-size: var(--text-caption);
 }
 .fishing-window-day strong {
   color: var(--ink);
-  font-size: 10px;
+  font-size: var(--text-caption);
 }
 .fishing-window-day span {
   white-space: nowrap;
@@ -1453,7 +1447,7 @@ a {
   flex-basis: 100%;
   margin: 0 0 4px;
   color: var(--green);
-  font-size: 9px;
+  font-size: var(--text-caption);
   font-weight: 700;
 }
 .fishing-window-day span {
@@ -1472,7 +1466,7 @@ a {
     gap: 8px;
   }
   .fishing-window-day {
-    font-size: 8px;
+    font-size: var(--text-caption);
   }
 }
 .species-marker {
@@ -1495,7 +1489,7 @@ a {
 .source-footnote {
   margin: 9px 1px 0;
   color: var(--color-muted);
-  font-size: 9px;
+  font-size: var(--text-caption);
   line-height: 1.55;
 }
 .source-footnote a {
@@ -1515,7 +1509,7 @@ a {
 }
 .empty-reports span {
   color: var(--color-muted);
-  font-size: 10px;
+  font-size: var(--text-caption);
   line-height: 1.5;
 }
 .location-facts {
@@ -1531,13 +1525,13 @@ a {
 }
 .location-facts dt {
   color: var(--color-muted);
-  font-size: 10px;
+  font-size: var(--text-caption);
 }
 .location-facts dd {
   margin: 0;
   text-align: right;
   color: var(--color-ink-soft);
-  font-size: 10px;
+  font-size: var(--text-caption);
   font-weight: 600;
 }
 .source-card .source-footnote {
@@ -1551,13 +1545,13 @@ a {
     max-width: 92px;
   }
   .hour-wind {
-    font-size: 7px;
+    font-size: var(--text-caption);
   }
   .location-facts > div {
     padding: 9px 0;
   }
   .source-footnote {
-    font-size: 8px;
+    font-size: var(--text-caption);
   }
 }
 
@@ -1576,7 +1570,7 @@ a {
   background: var(--green);
   color: var(--color-surface);
   padding: 10px 13px;
-  font-size: 10px;
+  font-size: var(--text-caption);
   font-weight: 700;
 }
 .button-primary:hover {
@@ -1593,12 +1587,12 @@ a {
   gap: 12px;
   padding: 10px 0;
   color: var(--color-muted);
-  font-size: 10px;
+  font-size: var(--text-caption);
 }
 .forum-notices {
   min-height: 0;
   color: var(--green);
-  font-size: 11px;
+  font-size: var(--text-caption);
 }
 .forum-notices:not(:empty) {
   padding: 9px 11px;
@@ -1626,14 +1620,14 @@ a {
   align-items: center;
   gap: 9px;
   color: var(--color-muted);
-  font-size: 10px;
+  font-size: var(--text-caption);
 }
 .forum-post-meta strong {
   color: var(--color-ink-soft);
-  font-size: 11px;
+  font-size: var(--text-caption);
 }
 .forum-post-meta time {
-  font-size: 9px;
+  font-size: var(--text-caption);
 }
 .forum-post h3 {
   margin: 9px 0 5px;
@@ -1654,14 +1648,15 @@ a {
   gap: 12px;
   margin-top: 10px;
   color: var(--color-muted);
-  font-size: 9px;
+  font-size: var(--text-caption);
 }
 .text-action {
-  padding: 4px 0;
+  min-height: 44px;
+  padding: 6px 8px;
   border: 0;
   background: transparent;
   color: var(--color-muted);
-  font-size: 9px;
+  font-size: var(--text-caption);
   text-decoration: underline;
   text-underline-offset: 2px;
 }
@@ -1680,7 +1675,7 @@ a {
   white-space: pre-wrap;
   overflow-wrap: anywhere;
   color: var(--color-muted);
-  font-size: 11px;
+  font-size: var(--text-caption);
   line-height: 1.6;
   margin: 5px 0;
 }
@@ -1690,20 +1685,22 @@ a {
   margin: 10px 0 4px;
 }
 .reply-form input {
+  min-height: 44px;
   flex: 1;
   min-width: 0;
   border: 1px solid var(--color-border);
   border-radius: 6px;
   padding: 9px;
-  font-size: 11px;
+  font-size: 16px;
 }
 .reply-form button {
+  min-height: 44px;
   border: 0;
   border-radius: 6px;
   padding: 0 13px;
   background: var(--color-brand-soft);
   color: var(--color-brand);
-  font-size: 10px;
+  font-size: 14px;
   font-weight: 700;
 }
 .forum-locked {
@@ -1711,7 +1708,7 @@ a {
   border-radius: 4px;
   padding: 4px 6px;
   color: var(--color-accent);
-  font-size: 8px;
+  font-size: var(--text-caption);
 }
 .moderation-panel {
   border-top: 1px solid var(--color-border);
@@ -1729,7 +1726,7 @@ a {
 .moderation-report p {
   margin: 0;
   color: var(--color-ink-soft);
-  font-size: 10px;
+  font-size: var(--text-caption);
   line-height: 1.55;
 }
 .forum-dialog {
@@ -1759,8 +1756,8 @@ a {
   margin: 6px 0 0;
 }
 .dialog-close {
-  width: 31px;
-  height: 31px;
+  width: 44px;
+  height: 44px;
   border: 0;
   border-radius: 50%;
   background: var(--color-brand-soft);
@@ -1780,7 +1777,7 @@ a {
   border-bottom: 2px solid transparent;
   background: transparent;
   color: var(--color-muted);
-  font-size: 11px;
+  font-size: var(--text-caption);
 }
 .auth-tab.active {
   border-color: var(--green);
@@ -1792,19 +1789,20 @@ a {
   gap: 7px;
   margin: 13px 0;
   color: var(--color-ink-soft);
-  font-size: 11px;
+  font-size: var(--text-caption);
   font-weight: 700;
 }
 .form-field input,
 .form-field textarea,
 .form-field select {
   width: 100%;
+  min-height: 44px;
   border: 1px solid var(--color-border);
   border-radius: 7px;
   padding: 11px;
   background: white;
   color: var(--ink);
-  font: 400 12px var(--sans);
+  font: 400 16px var(--sans);
   outline-color: var(--color-muted);
 }
 .form-field textarea {
@@ -1813,14 +1811,14 @@ a {
   line-height: 1.55;
 }
 .form-field small {
-  font-size: 9px;
+  font-size: var(--text-caption);
   color: var(--color-muted);
   font-weight: 400;
 }
 .form-error {
   min-height: 16px;
   color: var(--color-danger);
-  font-size: 10px;
+  font-size: var(--text-caption);
   margin: 5px 0;
 }
 .dialog-submit {
@@ -1837,11 +1835,13 @@ a {
     gap: 6px;
   }
   .forum-actions .button-primary {
+    min-height: 44px;
     padding: 9px 10px;
-    font-size: 9px;
+    font-size: var(--text-caption);
   }
   .forum-actions .button-outline {
-    font-size: 9px;
+    min-height: 44px;
+    font-size: var(--text-caption);
     padding: 9px;
   }
   .forum-post {
@@ -1851,7 +1851,7 @@ a {
     font-size: 15px;
   }
   .forum-post-body {
-    font-size: 11px;
+    font-size: var(--text-caption);
   }
   .forum-account {
     justify-content: flex-start;
@@ -1930,7 +1930,7 @@ a {
 }
 .location-card-type {
   color: var(--color-muted);
-  font-size: 8px;
+  font-size: var(--text-caption);
   font-weight: 700;
   letter-spacing: 0.7px;
   text-transform: uppercase;
@@ -1943,7 +1943,7 @@ a {
 .location-card-detail {
   margin-top: 5px;
   color: var(--color-muted);
-  font-size: 10px;
+  font-size: var(--text-caption);
   line-height: 1.45;
 }
 .location-card-coverage {
@@ -1951,7 +1951,7 @@ a {
   padding-top: 8px;
   border-top: 1px solid var(--color-brand-soft);
   color: var(--color-muted);
-  font-size: 8px;
+  font-size: var(--text-caption);
   line-height: 1.4;
 }
 .location-card.selected .location-card-coverage {
@@ -1971,7 +1971,7 @@ a {
 }
 
 .province-filter {
-  min-height: 2.5rem;
+  min-height: 2.75rem;
   min-width: 10rem;
   padding: 0.45rem 2rem 0.45rem 0.7rem;
   border: 1px solid var(--color-border);
@@ -2016,7 +2016,13 @@ a {
 .map-report-link,
 .map-note {
   color: var(--color-muted);
-  font-size: 0.7rem;
+  font-size: 0.75rem;
+}
+
+.leaflet-control-zoom a {
+  width: 40px !important;
+  height: 40px !important;
+  line-height: 40px !important;
 }
 
 .map-report-link {
@@ -2131,10 +2137,10 @@ a {
     font-size: 12px;
   }
   .location-card-detail {
-    font-size: 9px;
+    font-size: var(--text-caption);
   }
   .location-card-coverage {
-    font-size: 7px;
+    font-size: var(--text-caption);
   }
 }
 
@@ -2160,7 +2166,7 @@ a {
   bottom: 12px;
   max-width: 55%;
   color: var(--color-surface);
-  font-size: 9px;
+  font-size: var(--text-caption);
   text-align: right;
   text-shadow: 0 1px 5px rgb(var(--color-ink-rgb) / 0.8);
   text-decoration: underline;
@@ -2180,7 +2186,7 @@ a {
 .location-card-photo-credit {
   display: block;
   color: var(--color-muted);
-  font-size: 8px;
+  font-size: var(--text-caption);
   line-height: 1.45;
   margin: 2px 0 7px;
 }
@@ -2208,7 +2214,7 @@ a {
 }
 
 .location-button {
-  min-height: 42px;
+  min-height: 44px;
   padding-inline: 12px;
   border-radius: 12px;
   background: var(--canvas);
@@ -2216,8 +2222,8 @@ a {
 }
 
 .avatar {
-  width: 38px;
-  height: 38px;
+  width: 44px;
+  height: 44px;
 }
 
 .location-card {
@@ -2233,11 +2239,6 @@ a {
 
 .location-card:hover {
   transform: translateY(-2px);
-}
-
-.location-card:focus-visible {
-  outline: 3px solid var(--color-brand);
-  outline-offset: 3px;
 }
 
 .location-card.selected {
@@ -2268,7 +2269,7 @@ a {
   margin: 0;
   padding: 6px 10px;
   background: var(--color-surface);
-  font-size: 10px;
+  font-size: var(--text-caption);
 }
 
 .location-card-art-placeholder {
@@ -2284,7 +2285,7 @@ a {
 
 .location-card-placeholder-label {
   padding: 0 12px;
-  font-size: 11px;
+  font-size: var(--text-caption);
   font-weight: 600;
 }
 
@@ -2297,7 +2298,7 @@ a {
 }
 
 .location-card-type {
-  font-size: 10px;
+  font-size: var(--text-caption);
   letter-spacing: 0.8px;
 }
 
@@ -2315,7 +2316,7 @@ a {
   width: 100%;
   margin-top: 11px;
   padding-top: 9px;
-  font-size: 10px;
+  font-size: var(--text-caption);
 }
 
 .feature-photo-placeholder {
@@ -2363,16 +2364,16 @@ a {
   }
 
   .location-button {
-    width: 42px;
-    height: 42px;
+    width: 44px;
+    height: 44px;
     justify-content: center;
     padding: 8px;
     border-radius: 13px;
   }
 
   .avatar {
-    width: 38px;
-    height: 38px;
+    width: 44px;
+    height: 44px;
   }
 
   .location-grid {
@@ -2392,10 +2393,10 @@ a {
   }
 
   .location-card-detail {
-    font-size: 11px;
+    font-size: var(--text-caption);
   }
 
   .location-card-coverage {
-    font-size: 9px;
+    font-size: var(--text-caption);
   }
 }

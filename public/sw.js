@@ -1,4 +1,4 @@
-const STATIC_CACHE = 'stillwater-static-v2';
+const STATIC_CACHE = 'stillwater-static-v3';
 const DATA_CACHE = 'stillwater-public-data-v1';
 const CORE_ASSETS = [
   '/',
