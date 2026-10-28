@@ -37,4 +37,19 @@ export const locationPhotos = Object.freeze({
     license: 'CC BY-SA 4.0',
     sourceUrl: 'https://commons.wikimedia.org/wiki/File:Angling,_Vaal_Dam.jpg',
   },
+  'roodekopjes-dam': {
+    src: '/images/locations/roodekopjes-dam.webp',
+    alt: 'NASA astronaut photograph showing Roodekopjes Dam and its surrounding reservoir, 2013',
+    credit: 'NASA Johnson Space Center · 2013',
+    license: 'Public domain',
+    sourceUrl: 'https://commons.wikimedia.org/wiki/File:ISS037-E-12916_-_View_of_South_Africa.jpg',
+  },
+  'greater-brandvlei-dam': {
+    src: '/images/locations/greater-brandvlei-dam.webp',
+    alt: 'NASA astronaut photograph of Greater Brandvlei Dam and the Breede River, 2002',
+    credit: 'NASA Johnson Space Center · 2002',
+    license: 'Public domain',
+    sourceUrl:
+      'https://commons.wikimedia.org/wiki/File:ISS006-E-7894_-_View_of_South_Africa%2C_Greater_Brandvlei_%26_Breede_River.jpg',
+  },
 });

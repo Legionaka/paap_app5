@@ -110,8 +110,10 @@ function renderCatalog(location) {
     : '';
   const photoElement = document.querySelector('#locationPhoto');
   const photoCredit = document.querySelector('#locationPhotoCredit');
+  const photoPlaceholder = document.querySelector('#locationPhotoPlaceholder');
   photoElement.hidden = !photo;
   photoCredit.hidden = !photo;
+  photoPlaceholder.hidden = Boolean(photo);
   if (photo) {
     photoElement.src = photo.src;
     photoElement.alt = photo.alt;
@@ -325,22 +327,33 @@ function renderLocationCards(query = '', fitMap = false) {
     detail.className = 'location-card-detail';
     detail.textContent = [location.province, location.river].filter(Boolean).join(' · ');
     const photo = locationPhotos[location.id];
+    const art = document.createElement('span');
+    art.className = 'location-card-art';
     let thumbnail;
-    let credit;
+    const credit = document.createElement('small');
+    credit.className = 'location-card-photo-credit';
     if (photo) {
       thumbnail = document.createElement('img');
       thumbnail.className = 'location-card-photo';
       thumbnail.src = photo.src;
       thumbnail.alt = photo.alt;
       thumbnail.loading = 'lazy';
-      credit = document.createElement('small');
-      credit.className = 'location-card-photo-credit';
       credit.textContent = `Photo: ${photo.credit} · ${photo.license}`;
+      art.append(thumbnail, credit);
+    } else {
+      art.classList.add('location-card-art-placeholder');
+      const placeholderLabel = document.createElement('span');
+      placeholderLabel.className = 'location-card-placeholder-label';
+      placeholderLabel.textContent = 'Verified photo coming soon';
+      art.append(placeholderLabel);
     }
+    const body = document.createElement('span');
+    body.className = 'location-card-body';
     const coverage = document.createElement('span');
     coverage.className = 'location-card-coverage';
     coverage.textContent = `${location.factCount} sourced ${location.factCount === 1 ? 'specification' : 'specifications'} · ${location.lastCheckedAt ? `checked ${formatReportDate(location.lastCheckedAt.slice(0, 10))}` : 'details not checked'}`;
-    card.append(...[thumbnail, tag, name, detail, credit, coverage].filter(Boolean));
+    body.append(tag, name, detail, coverage);
+    card.append(art, body);
     card.addEventListener('click', () => selectLocation(location.id));
     grid.append(card);
   }

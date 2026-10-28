@@ -2184,3 +2184,218 @@ a {
   line-height: 1.45;
   margin: 2px 0 7px;
 }
+
+/* Polished, compact location directory and thumb-friendly mobile header. */
+.topbar {
+  height: 72px;
+  padding-inline: max(calc((100vw - 1280px) / 2), 24px);
+  gap: clamp(24px, 4vw, 56px);
+  background: rgb(var(--color-surface-rgb) / 0.96);
+  backdrop-filter: blur(14px);
+}
+
+.brand {
+  font-size: 23px;
+}
+
+.brand-mark {
+  width: 32px;
+  height: 32px;
+}
+
+.nav-link {
+  font-size: 14px;
+}
+
+.location-button {
+  min-height: 42px;
+  padding-inline: 12px;
+  border-radius: 12px;
+  background: var(--canvas);
+  font-size: 13px;
+}
+
+.avatar {
+  width: 38px;
+  height: 38px;
+}
+
+.location-card {
+  overflow: hidden;
+  padding: 0;
+  border-radius: 14px;
+  box-shadow: 0 2px 10px rgb(var(--color-ink-rgb) / 0.035);
+  transition:
+    border-color 0.18s ease,
+    box-shadow 0.18s ease,
+    transform 0.18s ease;
+}
+
+.location-card:hover {
+  transform: translateY(-2px);
+}
+
+.location-card:focus-visible {
+  outline: 3px solid var(--color-brand);
+  outline-offset: 3px;
+}
+
+.location-card.selected {
+  border-color: var(--color-brand);
+  box-shadow:
+    0 0 0 1px var(--color-brand),
+    0 6px 18px rgb(var(--color-ink-rgb) / 0.08);
+}
+
+.location-card-art {
+  display: flex;
+  width: 100%;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--color-brand-soft);
+}
+
+.location-card-photo {
+  display: block;
+  width: 100%;
+  aspect-ratio: 16 / 10;
+  margin: 0;
+  border-radius: 0;
+  object-fit: cover;
+}
+
+.location-card-photo-credit {
+  margin: 0;
+  padding: 6px 10px;
+  background: var(--color-surface);
+  font-size: 10px;
+}
+
+.location-card-art-placeholder {
+  min-height: 132px;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  background:
+    radial-gradient(ellipse at 25% 120%, rgb(var(--color-brand-rgb) / 0.2), transparent 52%),
+    linear-gradient(140deg, var(--color-brand-soft), var(--canvas));
+  color: var(--color-muted);
+}
+
+.location-card-placeholder-label {
+  padding: 0 12px;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.location-card-body {
+  display: flex;
+  width: 100%;
+  flex-direction: column;
+  align-items: flex-start;
+  padding: 13px 14px 14px;
+}
+
+.location-card-type {
+  font-size: 10px;
+  letter-spacing: 0.8px;
+}
+
+.location-card strong {
+  margin-top: 6px;
+  font-size: 16px;
+  line-height: 1.3;
+}
+
+.location-card-detail {
+  font-size: 12px;
+}
+
+.location-card-coverage {
+  width: 100%;
+  margin-top: 11px;
+  padding-top: 9px;
+  font-size: 10px;
+}
+
+.feature-photo-placeholder {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  background:
+    radial-gradient(ellipse at 25% 110%, rgb(var(--color-brand-rgb) / 0.58), transparent 52%),
+    linear-gradient(145deg, #d8e5de, #9cb9ab 52%, #4a7568);
+  color: var(--color-ink);
+  font-size: 13px;
+  font-weight: 650;
+}
+
+.feature-photo-placeholder[hidden] {
+  display: none;
+}
+
+.photo-placeholder-mark {
+  font-size: 56px;
+  font-weight: 400;
+  line-height: 0.8;
+  opacity: 0.56;
+}
+
+@media (max-width: 740px) {
+  .topbar {
+    height: 68px;
+    padding-inline: 18px;
+    gap: 0;
+  }
+
+  .brand {
+    gap: 8px;
+    font-size: 21px;
+  }
+
+  .brand-mark {
+    width: 29px;
+    height: 29px;
+  }
+
+  .location-button {
+    width: 42px;
+    height: 42px;
+    justify-content: center;
+    padding: 8px;
+    border-radius: 13px;
+  }
+
+  .avatar {
+    width: 38px;
+    height: 38px;
+  }
+
+  .location-grid {
+    gap: 12px;
+  }
+
+  .location-card-art-placeholder {
+    min-height: 104px;
+  }
+
+  .location-card-body {
+    padding: 11px 11px 12px;
+  }
+
+  .location-card strong {
+    font-size: 14px;
+  }
+
+  .location-card-detail {
+    font-size: 11px;
+  }
+
+  .location-card-coverage {
+    font-size: 9px;
+  }
+}

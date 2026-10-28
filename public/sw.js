@@ -1,4 +1,4 @@
-const STATIC_CACHE = 'stillwater-static-v1';
+const STATIC_CACHE = 'stillwater-static-v2';
 const DATA_CACHE = 'stillwater-public-data-v1';
 const CORE_ASSETS = [
   '/',
@@ -19,6 +19,8 @@ const CORE_ASSETS = [
   '/vendor/leaflet/leaflet.css',
   '/vendor/leaflet/leaflet.js',
   '/images/locations/hartbeespoort-dam.webp',
+  '/images/locations/roodekopjes-dam.webp',
+  '/images/locations/greater-brandvlei-dam.webp',
 ];
 
 self.addEventListener('install', (event) => {
